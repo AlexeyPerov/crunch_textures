@@ -8,7 +8,7 @@
 
 With this tool you can scan images (.png, .jpeg, .tga) across selected folders and detect which of them can work with Crunch compression.
 
-It simply checks their dimensions and suggests options for resizing.
+It simply checks their dimensions to be multiple of 4 and suggests options for resizing.
 
 Resizing is done via [image package](https://pub.dev/packages/image/example) with 4 options:
 - linear interpolation

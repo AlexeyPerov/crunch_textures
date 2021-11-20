@@ -15,7 +15,7 @@ class ErrorScreen extends StatelessWidget {
               SizedBox(height: 30),
               TextButton(
                   child: Text(
-                    "Back To Home".toUpperCase(),
+                    "Error. Press to retry".toUpperCase(),
                     style: Theme.of(context)
                         .textTheme
                         .headline6

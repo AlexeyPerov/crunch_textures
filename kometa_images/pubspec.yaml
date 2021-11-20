@@ -24,6 +24,7 @@ dependencies:
   path: ^1.8.0
   image: ^3.0.8
   fading_edge_scrollview: ^2.0.0
+  url_launcher: ^5.0.15
 
 flutter:
   uses-material-design: true

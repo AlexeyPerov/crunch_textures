@@ -6,12 +6,13 @@ import 'package:kometa_images/app/theme/theme_constants.dart';
 import 'package:kometa_images/app/theme/themes.dart';
 import 'package:kometa_images/screens/home/components/top_panel_card.dart';
 import 'package:kometa_images/screens/home/home_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: null,
+        appBar: null,
         body: Column(
           children: [
             SizedBox(height: 20),
@@ -31,30 +32,31 @@ class SettingsScreen extends StatelessWidget {
             ),
             Spacer(),
             Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.settings, size: 142),
+                SizedBox(height: 30),
+                Row(
                   children: [
-                    Icon(Icons.settings, size: 142),
-                    SizedBox(height: 30),
-                    Row(
-                      children: [
-                        Spacer(),
-                        drawThemeModeCard(context, Icons.sync, ThemeMode.system),
-                        drawThemeModeCard(
-                            context, Icons.lightbulb_outline, ThemeMode.light),
-                        drawThemeModeCard(context, Icons.lightbulb, ThemeMode.dark),
-                        Spacer()
-                      ],
-                    ),
-                    SizedBox(height: 40),
-                    Text(
-                      "Kometa.Games".toUpperCase(),
-                      style: Theme.of(context)
-                          .textTheme
-                          .headline6
-                          .copyWith(fontWeight: FontWeight.bold),
-                    )
+                    Spacer(),
+                    drawThemeModeCard(context, Icons.sync, ThemeMode.system),
+                    drawThemeModeCard(
+                        context, Icons.lightbulb_outline, ThemeMode.light),
+                    drawThemeModeCard(context, Icons.lightbulb, ThemeMode.dark),
+                    Spacer()
                   ],
+                ),
+                SizedBox(height: 40),
+                InkWell(
+                    child: new Text('About',
+                        style: Theme.of(context).textTheme.headline4.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                            decoration: TextDecoration.underline)),
+                    onTap: () => launch(
+                        'https://github.com/AlexeyPerov/crunch_textures'))
+              ],
             ),
             Spacer()
           ],

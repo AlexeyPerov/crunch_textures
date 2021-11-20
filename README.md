@@ -40,7 +40,7 @@ PS: if you want to change the theme go to Settings:
 
 Works with MacOS and Windows.
 
-Linux should work too but not tested. 
+Linux should work too (not tested). 
 
 Just type: 
 ```bash

@@ -21,7 +21,6 @@ dependencies:
   logger: ^1.0.0
   hive: ^2.0.4
   path_provider: ^2.0.2
-  rflutter_alert: ^2.0.4
   path: ^1.8.0
   image: ^3.0.8
   fading_edge_scrollview: ^2.0.0

@@ -100,7 +100,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
             ),
             Divider(),
             Padding(
-              padding: const EdgeInsets.only(left: 20.0),
+              padding: const EdgeInsets.only(left: 10.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,8 +143,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
                           ConditionWidget(
                             condition: !isMultipleOfFour,
                             widget: Text(
-                                'Only textures for which both the width and the height are multiple of 4 can be compressed to Crunch format',
-                                style: smallTextStyle),
+                                'Only textures for which both the width and the height are multiple of 4\ncan be compressed to Crunch format',
+                                style: smallTextStyle, maxLines: 2),
                           ),
                           SizedBox(height: 10),
                           Text('Power of 2: ' + (isPowerOfTwo ? "YES" : "NO"),
@@ -170,18 +170,21 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       widget: LinearProgressIndicator(),
                       fallback: SizedBox(height: 4)),
                   Divider(),
-                  SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 35.0),
-                    child: Text(
-                      'Resize options',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyText2
-                          .copyWith(fontWeight: FontWeight.bold),
+                  SizedBox(height: 5),
+                  ConditionWidget(
+                    condition: !isMultipleOfFour,
+                    widget: Padding(
+                      padding: const EdgeInsets.only(left: 35.0),
+                      child: Text(
+                        'Resize options',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyText2
+                            .copyWith(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                  SizedBox(height: 20),
+                  SizedBox(height: 10),
                   Padding(
                     padding: const EdgeInsets.only(left: 35.0),
                     child: Container(
@@ -204,7 +207,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      SizedBox(height: 15),
+                                      SizedBox(height: 10),
                                       Text(
                                           option.width.toString() +
                                               'x' +
@@ -222,7 +225,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     condition: option.resizeTypesAvailable
                                         .contains(ResizeType.linear),
                                     widget: Padding(
-                                      padding: const EdgeInsets.only(left: 50),
+                                      padding: const EdgeInsets.only(left: 20),
                                       child: _copyCard(
                                           "Copy & Resize",
                                           "Linear",
@@ -235,7 +238,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     condition: option.resizeTypesAvailable
                                         .contains(ResizeType.cubic),
                                     widget: Padding(
-                                      padding: const EdgeInsets.only(left: 30),
+                                      padding: const EdgeInsets.only(left: 15),
                                       child: _copyCard(
                                           "Copy & Resize",
                                           "Cubic",
@@ -248,7 +251,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     condition: option.resizeTypesAvailable
                                         .contains(ResizeType.nearest),
                                     widget: Padding(
-                                      padding: const EdgeInsets.only(left: 30),
+                                      padding: const EdgeInsets.only(left: 15),
                                       child: _copyCard(
                                           "Copy & Resize",
                                           "Nearest",
@@ -261,7 +264,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     condition: option.resizeTypesAvailable
                                         .contains(ResizeType.centerWithAlpha),
                                     widget: Padding(
-                                      padding: const EdgeInsets.only(left: 30),
+                                      padding: const EdgeInsets.only(left: 15),
                                       child: _copyCard(
                                           "Copy & Resize",
                                           "Add alpha to sides",
@@ -295,7 +298,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       child: Container(
         margin: EdgeInsets.all(1),
         height: 45.0,
-        width: 150.0,
+        width: 140.0,
         decoration: BoxDecoration(
           border: Border.all(
               color: highlighted

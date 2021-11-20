@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Align(
       alignment: Alignment.center,
       child: Container(
-          width: min(kMinWebContainerWidth, width), child: ControlPanel()),
+          width: min(kMinContainerWidth, width), child: ControlPanel()),
     );
   }
 }

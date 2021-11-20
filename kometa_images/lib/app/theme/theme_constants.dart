@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-const double kMinWebContainerWidth = 1250;
+const double kMinContainerWidth = 1250;
 const double systemTextScaleFactorOption = -1;
 const kPrimaryColor = Color(0xFF34A8B3);
 const kPrimaryLightColor = Color(0xFFFFECDF);

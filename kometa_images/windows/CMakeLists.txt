@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(kometa_images LANGUAGES CXX)
 
-set(BINARY_NAME "kometa_images")
+set(BINARY_NAME "Crunch Textures")
 
 cmake_policy(SET CMP0063 NEW)
 

@@ -92,10 +92,10 @@ BEGIN
             VALUE "CompanyName", "com.casualapps.kometaimages" "\0"
             VALUE "FileDescription", "Utilities set" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "kometa_images" "\0"
+            VALUE "InternalName", "Crunch Textures" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2021 com.casualapps.kometaimages. All rights reserved." "\0"
             VALUE "OriginalFilename", "kometa_images.exe" "\0"
-            VALUE "ProductName", "kometa_images" "\0"
+            VALUE "ProductName", "Crunch Textures" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

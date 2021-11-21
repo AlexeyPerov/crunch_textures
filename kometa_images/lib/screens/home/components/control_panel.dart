@@ -420,6 +420,10 @@ class _ControlPanelState extends State<ControlPanel> {
       if (outputErrors) logger.e(e);
     }
 
+    newAssets.sort((x1, x2) => pathUtils
+        .basename(x1.file.path)
+        .compareTo(pathUtils.basename(x2.file.path)));
+
     return newAssets;
   }
 }
@@ -477,7 +481,7 @@ class ImageSize {
   }
 
   String getCandidatesDescription() {
-    var description = "Closest options:";
+    var description = "Resize options:";
 
     for (var option in candidates) {
       description +=

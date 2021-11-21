@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:kometa_images/app/app.dart';
+import 'package:kometa_images/app/repositories/settings_repository.dart';
 import 'package:kometa_images/app/theme/theme_constants.dart';
 import 'package:kometa_images/app/theme/themes.dart';
 import 'package:kometa_images/screens/home/components/control_panel.dart';
@@ -22,6 +23,19 @@ class DetailsScreen extends StatefulWidget {
 
 class _DetailsScreenState extends State<DetailsScreen> {
   bool _inProgress = false;
+
+  ResizeMode _resizeMode;
+
+  _DetailsScreenState() {
+    final savedIndex = getIt<SettingsRepository>().getInt('resize_mode');
+
+    try {
+      _resizeMode = ResizeMode.values[savedIndex];
+    } catch (e) {
+      logger.e(e);
+      _resizeMode = ResizeMode.createResizedCopy;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +158,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             condition: !isMultipleOfFour,
                             widget: Text(
                                 'Only textures for which both the width and the height are multiple of 4\ncan be compressed to Crunch format',
-                                style: smallTextStyle, maxLines: 2),
+                                style: smallTextStyle,
+                                maxLines: 2),
                           ),
                           SizedBox(height: 10),
                           Text('Power of 2: ' + (isPowerOfTwo ? "YES" : "NO"),
@@ -153,7 +168,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       )
                     ],
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 5),
                   Row(
                     children: [
                       SizedBox(width: 80),
@@ -164,27 +179,32 @@ class _DetailsScreenState extends State<DetailsScreen> {
                               : commonRedTextStyle),
                     ],
                   ),
-                  SizedBox(height: 15),
+                  SizedBox(height: 5),
                   ConditionWidget(
                       condition: _inProgress,
                       widget: LinearProgressIndicator(),
                       fallback: SizedBox(height: 4)),
                   Divider(),
-                  SizedBox(height: 5),
                   ConditionWidget(
                     condition: !isMultipleOfFour,
                     widget: Padding(
                       padding: const EdgeInsets.only(left: 35.0),
-                      child: Text(
-                        'Resize options',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyText2
-                            .copyWith(fontWeight: FontWeight.bold),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Resize options',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyText2
+                                .copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(width: 10),
+                          _modeCard()
+                        ],
                       ),
                     ),
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 5),
                   Padding(
                     padding: const EdgeInsets.only(left: 35.0),
                     child: Container(
@@ -199,6 +219,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                 widget.asset.size.candidates.length - index - 1;
                             var option =
                                 widget.asset.size.candidates[reversedIndex];
+
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 20.0),
                               child: Row(
@@ -227,8 +248,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     widget: Padding(
                                       padding: const EdgeInsets.only(left: 20),
                                       child: _copyCard(
-                                          "Copy & Resize",
-                                          "Linear",
+                                          "Linear Interpolation",
                                           false,
                                           () => _resize(
                                               option, ResizeType.linear)),
@@ -240,8 +260,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     widget: Padding(
                                       padding: const EdgeInsets.only(left: 15),
                                       child: _copyCard(
-                                          "Copy & Resize",
-                                          "Cubic",
+                                          "Cubic Interpolation",
                                           false,
                                           () => _resize(
                                               option, ResizeType.cubic)),
@@ -253,8 +272,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     widget: Padding(
                                       padding: const EdgeInsets.only(left: 15),
                                       child: _copyCard(
-                                          "Copy & Resize",
-                                          "Nearest",
+                                          "Nearest Interpolation",
                                           false,
                                           () => _resize(
                                               option, ResizeType.nearest)),
@@ -266,8 +284,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     widget: Padding(
                                       padding: const EdgeInsets.only(left: 15),
                                       child: _copyCard(
-                                          "Copy & Resize",
-                                          "Add alpha to sides",
+                                          "Center inside a transparent image",
                                           true,
                                           () => _resize(option,
                                               ResizeType.centerWithAlpha)),
@@ -287,10 +304,63 @@ class _DetailsScreenState extends State<DetailsScreen> {
         ));
   }
 
-  Widget _copyCard(
-      String title, String caption, bool highlighted, Function onTap) {
+  Widget _modeCard() {
     const commonTextStyle = const TextStyle(fontSize: 14.0);
-    const captionTextStyle = const TextStyle(fontSize: 12.0);
+
+    var actionTitle = "Create resized copy";
+
+    if (_resizeMode == ResizeMode.resizeThisFileAndBackup) {
+      actionTitle = "Resize this file and backup";
+    } else if (_resizeMode == ResizeMode.resizeThisFile) {
+      actionTitle = "Resize this file";
+    }
+
+    return InkWell(
+      onTap: () => {
+        setState(() {
+          var index = _resizeMode.index;
+
+          index++;
+          if (index > 2) {
+            index = 0;
+          }
+
+          _resizeMode = ResizeMode.values[index];
+          getIt<SettingsRepository>().putInt('resize_mode', _resizeMode.index);
+        })
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        height: 35.0,
+        width: 220.0,
+        decoration: BoxDecoration(
+          border: Border.all(
+              color: Theme.of(context).colorScheme.background, width: 0.5),
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(10.0),
+          boxShadow: [heavyBoxShadow()],
+        ),
+        child: Container(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: EdgeInsets.only(left: 15.0, right: 15.0, top: 7.0),
+                child: Text(actionTitle,
+                    style: commonTextStyle,
+                    overflow: TextOverflow.fade,
+                    maxLines: 2),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _copyCard(String caption, bool highlighted, Function onTap) {
+    const commonTextStyle = const TextStyle(fontSize: 14.0);
 
     return InkWell(
       hoverColor: kPrimaryColor,
@@ -318,12 +388,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                 Text(caption,
                     style: commonTextStyle,
                     overflow: TextOverflow.fade,
-                    maxLines: 1),
-                SizedBox(height: 3),
-                Text(title,
-                    style: captionTextStyle,
-                    overflow: TextOverflow.fade,
-                    maxLines: 1)
+                    maxLines: 2),
               ],
             ),
           ),
@@ -344,6 +409,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
     final msg = "Resize " + path + " to " + destSizeStr + " as " + typeStr;
 
     logger.i(msg);
+
     final pathNoExtension = pathUtils.withoutExtension(path);
     final extension = pathUtils.extension(path);
     final destination = pathNoExtension +
@@ -352,7 +418,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
         "_" +
         typeStr +
         extension;
-    logger.i("Destination: " + destination);
 
     try {
       var file = widget.asset.file as File;
@@ -400,11 +465,29 @@ class _DetailsScreenState extends State<DetailsScreen> {
         resultingBytes = imageUtils.encodePng(resultImage);
       }
 
-      await File(destination).writeAsBytes(resultingBytes);
+      if (_resizeMode == ResizeMode.resizeThisFileAndBackup) {
+        final originalBackup = pathNoExtension + "_original" + extension;
+        logger.i('Saving original file at ');
+        await File(originalBackup).writeAsBytes(bytes);
 
-      final snackBar =
-          SnackBar(content: Text('Image copied to ' + destination));
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Backup at ' + originalBackup)));
+
+        logger.i("Overwriting file at: " + path);
+        await File(path).writeAsBytes(resultingBytes);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Resized ' + path)));
+      } else if (_resizeMode == ResizeMode.resizeThisFile) {
+        logger.i("Overwriting file at: " + path);
+        await File(path).writeAsBytes(resultingBytes);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Resized ' + path)));
+      } else {
+        logger.i("Destination: " + destination);
+        await File(destination).writeAsBytes(resultingBytes);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Resized image copied to ' + destination)));
+      }
     } catch (e) {
       logger.e(e);
     }
@@ -414,3 +497,5 @@ class _DetailsScreenState extends State<DetailsScreen> {
     });
   }
 }
+
+enum ResizeMode { createResizedCopy, resizeThisFile, resizeThisFileAndBackup }

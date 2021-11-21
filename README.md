@@ -14,7 +14,11 @@ Resizing is done via [image package](https://pub.dev/packages/image/example) wit
 - linear interpolation
 - cubic interpolation
 - nearest interpolation
-- or adding transparent pixels around original image
+- or centering original image inside transparent one with the desired size
+
+You can also:
+- resize an original file (with or without a backup)
+- resize to a copy
 
 ## Usage
 
@@ -32,7 +36,7 @@ Tapping on any of the images opens the panel where you can choose resize options
 
 
 ## 
-PS: if you want to change the theme go to Settings:
+Supports light & dark themes:
 
 ![plot](./screenshots/settings_themes.png)
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:kometa_images/app/theme/theme_constants.dart';
 import 'package:kometa_images/common/utilities/navigator_utilities.dart';
 import 'dart:math';

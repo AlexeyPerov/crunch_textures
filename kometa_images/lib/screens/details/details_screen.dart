@@ -15,20 +15,18 @@ import 'package:proviso/proviso.dart';
 class DetailsScreen extends StatefulWidget {
   final AssetInfo asset;
 
-  DetailsScreen({@required this.asset});
+  const DetailsScreen({Key? key, required this.asset}) : super(key: key);
 
   @override
-  _DetailsScreenState createState() => _DetailsScreenState();
+  State<DetailsScreen> createState() => _DetailsScreenState();
 }
 
 class _DetailsScreenState extends State<DetailsScreen> {
   bool _inProgress = false;
-
-  ResizeMode _resizeMode;
+  late ResizeMode _resizeMode;
 
   _DetailsScreenState() {
     final savedIndex = getIt<SettingsRepository>().getInt('resize_mode');
-
     try {
       _resizeMode = ResizeMode.values[savedIndex];
     } catch (e) {
@@ -87,13 +85,18 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       name,
                       style: Theme.of(context)
                           .textTheme
-                          .bodyText2
+                          .bodyMedium!
                           .copyWith(fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 10),
-                    Text(
-                      path,
-                      style: commonTextStyle,
+                    Container(
+                      width: totalWidth - 100,
+                      child: Text(
+                        path,
+                        style: commonTextStyle,
+                        overflow: TextOverflow.clip,                      
+                        maxLines: 2,
+                      ),
                     ),
                     SizedBox(height: 10),
                     Row(
@@ -195,7 +198,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             'Resize options',
                             style: Theme.of(context)
                                 .textTheme
-                                .bodyText2
+                                .bodyMedium!
                                 .copyWith(fontWeight: FontWeight.bold),
                           ),
                           SizedBox(width: 10),
@@ -209,7 +212,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                     padding: const EdgeInsets.only(left: 35.0),
                     child: Container(
                       width: totalWidth,
-                      height: totalHeight - 350,
+                      height: totalHeight - 400,
                       child: ListView.builder(
                           shrinkWrap: false,
                           scrollDirection: Axis.vertical,
@@ -284,7 +287,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     widget: Padding(
                                       padding: const EdgeInsets.only(left: 15),
                                       child: _copyCard(
-                                          "Center inside a transparent image",
+                                          "Center inside a transparent img",
                                           true,
                                           () => _resize(option,
                                               ResizeType.centerWithAlpha)),
@@ -367,7 +370,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       onTap: () => {onTap()},
       child: Container(
         margin: EdgeInsets.all(1),
-        height: 45.0,
+        height: 50.0,
         width: 140.0,
         decoration: BoxDecoration(
           border: Border.all(
@@ -429,19 +432,19 @@ class _DetailsScreenState extends State<DetailsScreen> {
 
       switch (type) {
         case ResizeType.nearest:
-          resultImage = imageUtils.copyResize(image,
+          resultImage = imageUtils.copyResize(image!,
               width: option.width,
               height: option.height,
               interpolation: imageUtils.Interpolation.nearest);
           break;
         case ResizeType.linear:
-          resultImage = imageUtils.copyResize(image,
+          resultImage = imageUtils.copyResize(image!,
               width: option.width,
               height: option.height,
               interpolation: imageUtils.Interpolation.linear);
           break;
         case ResizeType.cubic:
-          resultImage = imageUtils.copyResize(image,
+          resultImage = imageUtils.copyResize(image!,
               width: option.width,
               height: option.height,
               interpolation: imageUtils.Interpolation.cubic);
@@ -450,7 +453,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
           final tempImage = imageUtils.Image(option.width, option.height);
           final blankImage =
               imageUtils.fill(tempImage, imageUtils.getColor(0, 0, 0, 0));
-          resultImage = imageUtils.copyInto(blankImage, image,
+          resultImage = imageUtils.copyInto(blankImage, image!,
               blend: false, center: true);
           break;
       }

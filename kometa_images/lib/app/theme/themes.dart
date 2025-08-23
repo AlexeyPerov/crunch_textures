@@ -17,39 +17,32 @@ class AppThemeData {
       textTheme: _textTheme.apply(bodyColor: colorScheme.onPrimary, displayColor: colorScheme.onPrimary),
       primaryColor: const Color(0xFF030303),
       appBarTheme: AppBarTheme(
-        textTheme: _textTheme.apply(bodyColor: colorScheme.onPrimary),
-        color: colorScheme.background,
+        color: colorScheme.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colorScheme.primary),
-        brightness: colorScheme.brightness,
       ),
       iconTheme: IconThemeData(color: colorScheme.onPrimary),
-      canvasColor: colorScheme.background,
-      scaffoldBackgroundColor: colorScheme.background,
+      canvasColor: colorScheme.surface,
+      scaffoldBackgroundColor: colorScheme.surface,
       highlightColor: Colors.transparent,
       splashColor: Colors.transparent,
       hoverColor: Colors.transparent,
-      accentColor: colorScheme.primary,
       focusColor: focusColor,
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: Color.alphaBlend(
           _lightFillColor.withOpacity(0.80),
           _darkFillColor,
-        ),
-        contentTextStyle: _textTheme.subtitle1.apply(color: _darkFillColor),
+        )
       ),
     );
   }
 
-  static const ColorScheme lightColorScheme = ColorScheme(
+  static const ColorScheme lightColorScheme = ColorScheme(    
     primary: Color(0xFF000000),
-    primaryVariant: Color(0xFF25CDD4),
     secondary: Color(0xFFEFF3F3),
-    secondaryVariant: Color(0xFFFAFBFB),
-    background: Color(0xFFE6EBEB),
-    surface: Color(0xFFFAFBFB),
-    onBackground: Colors.white,
+    surface: Color.fromARGB(255, 255, 255, 255),
+    secondaryContainer: Color.fromARGB(255, 117, 117, 117),
     error: _lightFillColor,
     onError: _lightFillColor,
     onPrimary: _lightFillColor,
@@ -60,12 +53,8 @@ class AppThemeData {
 
   static const ColorScheme darkColorScheme = ColorScheme(
     primary: Color(0xFF18FAE2),
-    primaryVariant: Color(0xFF1CDEC9),
     secondary: Color(0xFF1F797C),
-    secondaryVariant: Color(0xFF1B526F),
-    background: Color(0xFF1E302F),
-    surface: Color(0xFF1F1929),
-    onBackground: Color(0x0DFFFFFF), // White with 0.05 opacity
+    surface: Color.fromARGB(255, 58, 48, 74),
     error: _darkFillColor,
     onError: _darkFillColor,
     onPrimary: _darkFillColor,
@@ -74,22 +63,10 @@ class AppThemeData {
     brightness: Brightness.dark,
   );
 
-  static const _regular = FontWeight.w400;
-  static const _medium = FontWeight.w500;
-  static const _semiBold = FontWeight.w600;
   static const _bold = FontWeight.w700;
 
   static final TextTheme _textTheme = TextTheme(
-    headline4: TextStyle(fontWeight: _bold, fontSize: 20.0),
-    caption: TextStyle(fontWeight: _semiBold, fontSize: 16.0),
-    headline5: TextStyle(fontWeight: _medium, fontSize: 16.0),
-    subtitle1: TextStyle(fontWeight: _medium, fontSize: 16.0),
-    overline: TextStyle(fontWeight: _medium, fontSize: 12.0),
-    bodyText1: TextStyle(fontWeight: _regular, fontSize: 14.0),
-    subtitle2: TextStyle(fontWeight: _medium, fontSize: 14.0),
-    bodyText2: TextStyle(fontWeight: _regular, fontSize: 16.0),
-    headline6: TextStyle(fontWeight: _bold, fontSize: 16.0),
-    button: TextStyle(fontWeight: _semiBold, fontSize: 14.0),
+    headlineLarge: TextStyle(fontWeight: _bold, fontSize: 20.0)
   );
 }
 

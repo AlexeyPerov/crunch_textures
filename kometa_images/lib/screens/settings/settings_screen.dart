@@ -50,10 +50,9 @@ class SettingsScreen extends StatelessWidget {
                 SizedBox(height: 40),
                 InkWell(
                     child: new Text('About',
-                        style: Theme.of(context).textTheme.headline4.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                            decoration: TextDecoration.underline)),
+                        style: TextStyle(
+                          decoration: TextDecoration.underline,
+                        )),
                     onTap: () => launch(
                         'https://github.com/AlexeyPerov/crunch_textures'))
               ],

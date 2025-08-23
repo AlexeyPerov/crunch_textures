@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'app/app.dart';
@@ -33,7 +32,7 @@ class AppWidget extends StatelessWidget {
           .getInt("theme_mode", defaultValue: ThemeMode.system.index)],
       textScaleFactor: systemTextScaleFactorOption,
       timeDilation: timeDilation,
-      platform: defaultTargetPlatform,
+      //platform: defaultTargetPlatform,
       isTestMode: false,
     ),
     child: Builder(
@@ -49,10 +48,10 @@ class AppWidget extends StatelessWidget {
       title: 'Kometa.Images',
       themeMode: AppOptions.of(context).themeMode,
       theme: AppThemeData.lightThemeData.copyWith(
-        platform: AppOptions.of(context).platform,
+        //platform: AppOptions.of(context).platform,
       ),
       darkTheme: AppThemeData.darkThemeData.copyWith(
-        platform: AppOptions.of(context).platform,
+        //platform: AppOptions.of(context).platform,
       ),
       onGenerateRoute: _generateRoute,
     );
@@ -76,20 +75,17 @@ class AppWidget extends StatelessWidget {
   }
 
   Route<dynamic> _generateRoute(RouteSettings settings) {
-    var routingData = settings.name.getRoutingData;
+    var routingData = settings.name!.getRoutingData;
     switch (routingData.route) {
       case '/settings':
         return MaterialPageRoute(
             builder: (context) => _redirectOnAppInit(() => SettingsScreen()));
-        break;
       case '/splash':
         return MaterialPageRoute(
             builder: (context) => _redirectOnAppInit(() => SplashScreen()));
-        break;
       case '/error':
         return MaterialPageRoute(
             builder: (context) => _redirectOnAppInit(() => ErrorScreen()));
-        break;
     }
     return MaterialPageRoute(
       builder: (context) => _redirectOnAppInit(() => HomeScreen()),

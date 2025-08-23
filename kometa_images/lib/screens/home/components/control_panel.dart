@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:fading_edge_scrollview/fading_edge_scrollview.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:kometa_images/app/app.dart';
 import 'package:kometa_images/app/repositories/settings_repository.dart';
@@ -20,22 +19,21 @@ import 'mini_button.dart';
 import 'misc.dart';
 
 class ControlPanel extends StatefulWidget {
-  ControlPanel({Key key}) : super(key: key);
+  const ControlPanel({super.key});
 
   @override
-  _ControlPanelState createState() => _ControlPanelState();
+  State<ControlPanel> createState() => _ControlPanelState();
 }
 
 class _ControlPanelState extends State<ControlPanel> {
   List<AssetInfo> _assets = List.empty();
-  TextEditingController _sourceController;
-  ScrollController _controller;
+  late TextEditingController _sourceController;
+  late ScrollController _controller;
 
   bool _loading = false;
-  int _filesProcessed;
-  int _totalFiles;
-
-  bool _nonMultipleOFourOnly;
+  int _filesProcessed = 0;
+  int _totalFiles = 0;
+  bool _nonMultipleOFourOnly = false;
 
   @override
   void initState() {
@@ -45,13 +43,12 @@ class _ControlPanelState extends State<ControlPanel> {
     _sourceController = TextEditingController();
 
     final repository = getIt<SettingsRepository>();
-
     _nonMultipleOFourOnly =
         repository.getBool('nonMultipleOFourOnly', defaultValue: false);
 
-    var folder = repository.getString('target_folder');
+    final folder = repository.getString('target_folder');
 
-    if (folder == null || folder.isEmpty) {
+    if (folder.isEmpty) {
       _assets = List.empty();
       _loading = false;
     } else {
@@ -59,7 +56,7 @@ class _ControlPanelState extends State<ControlPanel> {
       _totalFiles = 0;
       _filesProcessed = 0;
       _fillAssetsList(folder, false)
-          .then((value) => {assetsUpdated(folder, value)});
+          .then((value) => assetsUpdated(folder, value));
     }
   }
 
@@ -90,13 +87,14 @@ class _ControlPanelState extends State<ControlPanel> {
           Text(loadingText,
               style: Theme.of(context)
                   .textTheme
-                  .bodyText2
+                  .bodyMedium!
                   .copyWith(fontWeight: FontWeight.bold)),
           LinearProgressIndicator(),
         ],
       );
     }
 
+    var totalWidth = MediaQuery.of(context).size.width;
     var totalHeight = MediaQuery.of(context).size.height;
     var headerHeight = 100.0;
 
@@ -121,17 +119,25 @@ class _ControlPanelState extends State<ControlPanel> {
                 child: Padding(
                   padding:
                       const EdgeInsets.only(left: 5, right: 30.0, top: 15.0),
-                  child: TextFormField(
-                    autocorrect: false,
-                    readOnly: true,
-                    controller: _sourceController,
-                    decoration: textFieldStyle(
-                        context,
-                        _sourceController.text.isNotEmpty
-                            ? 'Assets in folder: ' + _assets.length.toString()
-                            : "Select folder"),
-                    validator: validateNonEmpty,
-                    onTap: _onSelectFolderTap,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: totalWidth - 100,
+                        child: TextFormField(
+                          autocorrect: false,
+                          readOnly: true,
+                          controller: _sourceController,
+                          decoration: textFieldStyle(
+                              context,
+                              _sourceController.text.isNotEmpty
+                                  ? 'Assets in folder: ' +
+                                      _assets.length.toString()
+                                  : 'Select folder'),
+                          validator: validateNonEmpty,
+                          onTap: _onSelectFolderTap,
+                        ),
+                      )
+                    ],
                   ),
                 ),
               ),
@@ -143,15 +149,27 @@ class _ControlPanelState extends State<ControlPanel> {
           widget: Padding(
             padding: const EdgeInsets.only(left: 20),
             child: Row(children: [
+              ConditionWidget(
+                  condition: _sourceController.text.length > 0,
+                  widget: Padding(
+                    padding: EdgeInsets.only(left: 10.0),
+                    child: TextButton(                    
+                        onPressed: () {
+                          _sourceController.clear();
+                          setState(() {
+                            _assets = List.empty();
+                          });
+                        },
+                        child: const Text('Reset')),
+                  )),
               _modeCard(
-                  // 'Non multiple of 4 [%4]: ' + _assets.where((asset) => !asset.size.multipleOfFour).length.toString() + '\nAll: ' + _assets.length.toString(),
                   'Non-multiple of 4: ' +
                       _assets
                           .where((asset) => !asset.size.multipleOfFour)
                           .length
                           .toString(),
                   _nonMultipleOFourOnly,
-                  _modeSwitched)
+                  _modeSwitched),
             ]),
           ),
         ),
@@ -190,7 +208,7 @@ class _ControlPanelState extends State<ControlPanel> {
         decoration: BoxDecoration(
           border: Border.all(
               color: selected
-                  ? Theme.of(context).colorScheme.primaryVariant
+                  ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.background,
               width: 0.5),
           color: selected ? kPrimaryColor : Theme.of(context).cardColor,
@@ -401,7 +419,7 @@ class _ControlPanelState extends State<ControlPanel> {
         try {
           var bytes = await file.readAsBytes();
           var image = decodeImage(bytes);
-          var imageSize = ImageSize(image.width, image.height);
+          var imageSize = ImageSize(image!.width, image.height);
 
           var stat = await FileStat.stat(fileEntry.path);
 
@@ -445,7 +463,7 @@ class ImageSize {
   final bool powerOfTwo;
   final bool multipleOfFourWidth;
   final bool multipleOfFourHeight;
-  bool multipleOfFour;
+  late bool multipleOfFour;
 
   List<ResizeOption> candidates = List.empty(growable: true);
 

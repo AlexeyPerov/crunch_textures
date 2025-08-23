@@ -8,17 +8,17 @@ import 'package:kometa_images/app/theme/theme_constants.dart';
 
 class AppOptions {
   const AppOptions({
-    this.themeMode,
-    double textScaleFactor,
-    this.timeDilation,
-    this.platform,
-    this.isTestMode,
+    this.themeMode = ThemeMode.system,
+    double textScaleFactor = systemTextScaleFactorOption,
+    this.timeDilation = 1.0,
+    // this.platform = defaultTargetPlatform,
+    this.isTestMode = false,
   })  : _textScaleFactor = textScaleFactor;
 
   final ThemeMode themeMode;
   final double _textScaleFactor;
   final double timeDilation;
-  final TargetPlatform platform;
+  //final TargetPlatform platform;
   final bool isTestMode;
 
   double textScaleFactor(BuildContext context, {bool useSentinel = false}) {
@@ -52,18 +52,18 @@ class AppOptions {
   }
 
   AppOptions copyWith({
-    ThemeMode themeMode,
-    double textScaleFactor,
-    Locale locale,
-    double timeDilation,
-    TargetPlatform platform,
-    bool isTestMode,
+    ThemeMode themeMode = ThemeMode.system,
+    double textScaleFactor = systemTextScaleFactorOption,
+    Locale locale = const Locale('en', 'US'),
+    double timeDilation = 1.0,
+    //TargetPlatform platform = defaultTargetPlatform,
+    bool isTestMode = false,
   }) {
     return AppOptions(
       themeMode: themeMode ?? this.themeMode,
       textScaleFactor: textScaleFactor ?? _textScaleFactor,
       timeDilation: timeDilation ?? this.timeDilation,
-      platform: platform ?? this.platform,
+      //platform: platform ?? this.platform,
       isTestMode: isTestMode ?? this.isTestMode,
     );
   }
@@ -74,33 +74,33 @@ class AppOptions {
           themeMode == other.themeMode &&
           _textScaleFactor == other._textScaleFactor &&
           timeDilation == other.timeDilation &&
-          platform == other.platform &&
+          //platform == other.platform &&
           isTestMode == other.isTestMode;
 
   @override
-  int get hashCode => hashValues(
+  int get hashCode => Object.hash(
     themeMode,
     _textScaleFactor,
     timeDilation,
-    platform,
+    //platform,
     isTestMode,
   );
 
   static AppOptions of(BuildContext context) {
     final scope =
     context.dependOnInheritedWidgetOfExactType<_ModelBindingScope>();
-    return scope.modelBindingState.currentModel;
+    return scope!.modelBindingState.currentModel;
   }
 
   static void update(BuildContext context, AppOptions newModel) {
     final scope =
     context.dependOnInheritedWidgetOfExactType<_ModelBindingScope>();
-    scope.modelBindingState.updateModel(newModel);
+    scope!.modelBindingState.updateModel(newModel);
   }
 }
 
 class ApplyTextOptions extends StatelessWidget {
-  const ApplyTextOptions({@required this.child});
+  const ApplyTextOptions({required this.child});
 
   final Widget child;
 
@@ -121,9 +121,9 @@ class ApplyTextOptions extends StatelessWidget {
 
 class _ModelBindingScope extends InheritedWidget {
   _ModelBindingScope({
-    Key key,
-    @required this.modelBindingState,
-    Widget child,
+    Key key = const Key('ModelBindingScope'),
+    required this.modelBindingState,
+    required Widget child,
   })  : assert(modelBindingState != null),
         super(key: key, child: child);
 
@@ -135,9 +135,9 @@ class _ModelBindingScope extends InheritedWidget {
 
 class ModelBinding extends StatefulWidget {
   ModelBinding({
-    Key key,
+    Key key = const Key('ModelBinding'),
     this.initialModel = const AppOptions(),
-    this.child,
+    required this.child,
   })  : assert(initialModel != null),
         super(key: key);
 
@@ -149,8 +149,8 @@ class ModelBinding extends StatefulWidget {
 }
 
 class _ModelBindingState extends State<ModelBinding> {
-  AppOptions currentModel;
-  Timer _timeDilationTimer;
+  late AppOptions currentModel;
+  late Timer? _timeDilationTimer;
 
   @override
   void initState() {

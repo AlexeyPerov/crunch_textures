@@ -18,7 +18,7 @@ class ErrorScreen extends StatelessWidget {
                     "Error. Press to retry".toUpperCase(),
                     style: Theme.of(context)
                         .textTheme
-                        .headline6
+                        .headlineMedium!
                         .copyWith(fontWeight: FontWeight.bold)
                         .copyWith(color: Colors.black54),
                   ),

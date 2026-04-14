@@ -55,3 +55,7 @@ app.*.map.json
 *.js_
 *.js.deps
 *.js.map
+
+# Editor/IDE
+.idea/
+.vscode/

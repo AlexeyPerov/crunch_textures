@@ -776,7 +776,9 @@ class _ControlPanelState extends State<ControlPanel> {
 
   Future _onSelectFolderTap() async {
     try {
-      var folder = await FilePicker.platform.getDirectoryPath();
+      final folder = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select folder with textures',
+      );
 
       if (folder != null && folder.isNotEmpty) {
         setState(() {
@@ -795,8 +797,13 @@ class _ControlPanelState extends State<ControlPanel> {
           _loading = false;
         });
       }
-    } catch (e) {
-      logger.e(e);
+    } catch (e, st) {
+      logger.e(e, st);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Folder picker failed to open: ${e.toString()}')));
     }
   }
 

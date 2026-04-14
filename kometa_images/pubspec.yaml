@@ -12,7 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  file_picker: ^4.2.3
+  file_picker: ^10.3.9
   cupertino_icons: ^1.0.2
   intl: ^0.17.0
   get_it: ^7.2.0

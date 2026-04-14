@@ -321,22 +321,39 @@ class _ControlPanelState extends State<ControlPanel> {
                             : commonRedTextStyle),
                   ],
                 ),
-                SizedBox(width: 10.0),
-                Text("^2:", maxLines: 1, style: commonTextStyle),
-                MiniButton(
-                    icon: isPowerOfTwo
-                        ? Icons.check_outlined
-                        : Icons.close_rounded,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    pressed: () => _goToDetails(assetInfo)),
                 SizedBox(width: 30.0),
-                Text("%4:", maxLines: 1, style: commonTextStyle),
-                MiniButton(
-                    icon: isMultipleOfFour
-                        ? Icons.check_outlined
-                        : Icons.close_rounded,
-                    color: isMultipleOfFour ? Colors.green : Colors.red,
-                    pressed: () => _goToDetails(assetInfo)),
+                Tooltip(
+                  message: 'Width and height are powers of two',
+                  child: Text("Power of 2:", maxLines: 1, style: commonTextStyle),
+                ),
+                Tooltip(
+                  message: isPowerOfTwo
+                      ? 'Dimensions are valid power-of-two values'
+                      : 'One or both dimensions are not power-of-two values',
+                  child: MiniButton(
+                      icon: isPowerOfTwo
+                          ? Icons.check_outlined
+                          : Icons.close_rounded,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      pressed: () => _goToDetails(assetInfo)),
+                ),
+                SizedBox(width: 30.0),
+                Tooltip(
+                  message: 'Width and height are divisible by 4',
+                  child:
+                      Text("Multiple of 4:", maxLines: 1, style: commonTextStyle),
+                ),
+                Tooltip(
+                  message: isMultipleOfFour
+                      ? 'Dimensions are Crunch-compatible'
+                      : 'One or both dimensions are not divisible by 4',
+                  child: MiniButton(
+                      icon: isMultipleOfFour
+                          ? Icons.check_outlined
+                          : Icons.close_rounded,
+                      color: isMultipleOfFour ? Colors.green : Colors.red,
+                      pressed: () => _goToDetails(assetInfo)),
+                ),
               ],
             ),
             SizedBox(height: 5),

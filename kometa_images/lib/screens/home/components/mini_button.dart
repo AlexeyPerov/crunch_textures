@@ -14,16 +14,16 @@ class MiniButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
-      child: SizedBox(
-        height: 25,
-        width: 20,
-        child: IconButton(
-          icon: Icon(icon, size: 25),
-          color: color,
-          onPressed: pressed,
-        ),
+    return SizedBox(
+      height: 20,
+      width: 20,
+      child: IconButton(
+        icon: Icon(icon, size: 18),
+        color: color,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+        splashRadius: 12,
+        onPressed: pressed,
       ),
     );
   }

@@ -407,7 +407,7 @@ class _ControlPanelState extends State<ControlPanel> {
     final repository = getIt<SettingsRepository>();
     final savedResizeTypeIndex = repository.getInt(
       'batch_resize_type',
-      defaultValue: ResizeType.linear.index,
+      defaultValue: ResizeType.centerWithAlpha.index,
     );
     final savedResizeModeIndex = repository.getInt(
       'batch_resize_mode',
@@ -420,7 +420,7 @@ class _ControlPanelState extends State<ControlPanel> {
     try {
       selectedType = ResizeType.values[savedResizeTypeIndex];
     } catch (_) {
-      selectedType = ResizeType.linear;
+      selectedType = ResizeType.centerWithAlpha;
     }
 
     try {
@@ -451,6 +451,9 @@ class _ControlPanelState extends State<ControlPanel> {
                     value: selectedType,
                     decoration: const InputDecoration(labelText: 'Interpolation'),
                     items: const [
+                      DropdownMenuItem(
+                          value: ResizeType.centerWithAlpha,
+                          child: Text('Center inside a transparent img')),
                       DropdownMenuItem(
                           value: ResizeType.nearest, child: Text('Nearest')),
                       DropdownMenuItem(

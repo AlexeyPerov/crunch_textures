@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:kometa_images/app/app.dart';
 import 'package:kometa_images/app/repositories/settings_repository.dart';
+import 'package:kometa_images/app/services/image_resize_service.dart';
 import 'package:kometa_images/app/theme/theme_constants.dart';
 import 'package:kometa_images/app/theme/themes.dart';
 import 'package:kometa_images/screens/home/components/control_panel.dart';
 import 'package:kometa_images/screens/home/components/top_panel_card.dart';
 import 'package:kometa_images/screens/home/home_screen.dart';
-import 'package:image/image.dart' as imageUtils;
 import 'package:path/path.dart' as pathUtils;
 import 'package:proviso/proviso.dart';
 
@@ -24,6 +24,7 @@ class DetailsScreen extends StatefulWidget {
 class _DetailsScreenState extends State<DetailsScreen> {
   bool _inProgress = false;
   late ResizeMode _resizeMode;
+  final ImageResizeService _resizeService = ImageResizeService();
 
   _DetailsScreenState() {
     final savedIndex = getIt<SettingsRepository>().getInt('resize_mode');
@@ -406,93 +407,32 @@ class _DetailsScreenState extends State<DetailsScreen> {
     });
 
     final path = widget.asset.file.path;
-    final typeStr = type.toShortString();
-    final destSizeStr =
-        option.width.toString() + "x" + option.height.toString();
-    final msg = "Resize " + path + " to " + destSizeStr + " as " + typeStr;
+    final result = await _resizeService.resize(ImageResizeRequest(
+      sourcePath: path,
+      width: option.width,
+      height: option.height,
+      resizeType: type,
+      resizeMode: _resizeMode,
+    ));
 
-    logger.i(msg);
+    if (!mounted) {
+      return;
+    }
 
-    final pathNoExtension = pathUtils.withoutExtension(path);
-    final extension = pathUtils.extension(path);
-    final destination = pathNoExtension +
-        "_autoresize_" +
-        destSizeStr +
-        "_" +
-        typeStr +
-        extension;
-
-    try {
-      var file = widget.asset.file as File;
-
-      var bytes = await file.readAsBytes();
-      var image = imageUtils.decodeImage(bytes);
-
-      imageUtils.Image resultImage;
-
-      switch (type) {
-        case ResizeType.nearest:
-          resultImage = imageUtils.copyResize(image!,
-              width: option.width,
-              height: option.height,
-              interpolation: imageUtils.Interpolation.nearest);
-          break;
-        case ResizeType.linear:
-          resultImage = imageUtils.copyResize(image!,
-              width: option.width,
-              height: option.height,
-              interpolation: imageUtils.Interpolation.linear);
-          break;
-        case ResizeType.cubic:
-          resultImage = imageUtils.copyResize(image!,
-              width: option.width,
-              height: option.height,
-              interpolation: imageUtils.Interpolation.cubic);
-          break;
-        case ResizeType.centerWithAlpha:
-          final tempImage = imageUtils.Image(option.width, option.height);
-          final blankImage =
-              imageUtils.fill(tempImage, imageUtils.getColor(0, 0, 0, 0));
-          resultImage = imageUtils.copyInto(blankImage, image!,
-              blend: false, center: true);
-          break;
-      }
-
-      List<int> resultingBytes;
-
-      if (extension == ".jpg" || extension == ".jpeg") {
-        resultingBytes = imageUtils.encodeJpg(resultImage);
-      } else if (extension == ".tga") {
-        resultingBytes = imageUtils.encodeTga(resultImage);
-      } else {
-        resultingBytes = imageUtils.encodePng(resultImage);
-      }
-
-      if (_resizeMode == ResizeMode.resizeThisFileAndBackup) {
-        final originalBackup = pathNoExtension + "_original" + extension;
-        logger.i('Saving original file at ');
-        await File(originalBackup).writeAsBytes(bytes);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Backup at ' + originalBackup)));
-
-        logger.i("Overwriting file at: " + path);
-        await File(path).writeAsBytes(resultingBytes);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Resized ' + path)));
-      } else if (_resizeMode == ResizeMode.resizeThisFile) {
-        logger.i("Overwriting file at: " + path);
-        await File(path).writeAsBytes(resultingBytes);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Resized ' + path)));
-      } else {
-        logger.i("Destination: " + destination);
-        await File(destination).writeAsBytes(resultingBytes);
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Resized image copied to ' + destination)));
-      }
-    } catch (e) {
-      logger.e(e);
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to resize image: ${result.error}')));
+    } else if (result.backupPath != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Backup at ${result.backupPath}')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Resized ${result.outputPath}')));
+    } else if (_resizeMode == ResizeMode.createResizedCopy) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Resized image copied to ${result.outputPath}')));
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Resized ${result.outputPath}')));
     }
 
     setState(() {
@@ -500,5 +440,3 @@ class _DetailsScreenState extends State<DetailsScreen> {
     });
   }
 }
-
-enum ResizeMode { createResizedCopy, resizeThisFile, resizeThisFileAndBackup }

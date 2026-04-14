@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:kometa_images/app/app.dart';
 import 'package:kometa_images/app/repositories/settings_repository.dart';
+import 'package:kometa_images/app/services/image_resize_service.dart';
 import 'package:kometa_images/app/theme/theme_constants.dart';
 import 'package:kometa_images/app/theme/themes.dart';
 import 'package:kometa_images/common/utilities/navigator_utilities.dart';
@@ -29,6 +30,7 @@ class _ControlPanelState extends State<ControlPanel> {
   List<AssetInfo> _assets = List.empty();
   late TextEditingController _sourceController;
   late ScrollController _controller;
+  final ImageResizeService _resizeService = ImageResizeService();
 
   bool _loading = false;
   int _filesProcessed = 0;
@@ -170,6 +172,12 @@ class _ControlPanelState extends State<ControlPanel> {
                           .toString(),
                   _nonMultipleOFourOnly,
                   _modeSwitched),
+              TextButton(
+                onPressed: _assets.any((asset) => !asset.size.multipleOfFour)
+                    ? _onFixAllInvalidTap
+                    : null,
+                child: const Text('Fix all invalid'),
+              ),
             ]),
           ),
         ),
@@ -377,6 +385,395 @@ class _ControlPanelState extends State<ControlPanel> {
         context, (_, __, ___) => DetailsScreen(asset: asset));
   }
 
+  Future<void> _onFixAllInvalidTap() async {
+    final invalidAssets =
+        _assets.where((asset) => !asset.size.multipleOfFour).toList();
+
+    if (invalidAssets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No invalid textures to process.')));
+      return;
+    }
+
+    final options = await _showBatchOptionsDialog(invalidAssets.length);
+    if (options == null || !mounted) {
+      return;
+    }
+
+    await _runBatchResize(invalidAssets, options);
+  }
+
+  Future<_BatchResizeOptions?> _showBatchOptionsDialog(int filesCount) async {
+    final repository = getIt<SettingsRepository>();
+    final savedResizeTypeIndex = repository.getInt(
+      'batch_resize_type',
+      defaultValue: ResizeType.linear.index,
+    );
+    final savedResizeModeIndex = repository.getInt(
+      'batch_resize_mode',
+      defaultValue: ResizeMode.createResizedCopy.index,
+    );
+
+    ResizeType selectedType;
+    ResizeMode selectedMode;
+
+    try {
+      selectedType = ResizeType.values[savedResizeTypeIndex];
+    } catch (_) {
+      selectedType = ResizeType.linear;
+    }
+
+    try {
+      selectedMode = ResizeMode.values[savedResizeModeIndex];
+    } catch (_) {
+      selectedMode = ResizeMode.createResizedCopy;
+    }
+
+    bool dangerousConfirmed = false;
+
+    final result = await showDialog<_BatchResizeOptions>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Fix all invalid'),
+            content: SizedBox(
+              width: 480,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Files to process: $filesCount'),
+                  const SizedBox(height: 10),
+                  const Text('Resize method: Use recommended size per file'),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<ResizeType>(
+                    value: selectedType,
+                    decoration: const InputDecoration(labelText: 'Interpolation'),
+                    items: const [
+                      DropdownMenuItem(
+                          value: ResizeType.nearest, child: Text('Nearest')),
+                      DropdownMenuItem(
+                          value: ResizeType.linear, child: Text('Linear')),
+                      DropdownMenuItem(
+                          value: ResizeType.cubic, child: Text('Cubic')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setDialogState(() {
+                        selectedType = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<ResizeMode>(
+                    value: selectedMode,
+                    decoration: const InputDecoration(labelText: 'Output mode'),
+                    items: const [
+                      DropdownMenuItem(
+                          value: ResizeMode.createResizedCopy,
+                          child: Text('Create resized copy')),
+                      DropdownMenuItem(
+                          value: ResizeMode.resizeThisFileAndBackup,
+                          child: Text('Resize original + backup')),
+                      DropdownMenuItem(
+                          value: ResizeMode.resizeThisFile,
+                          child: Text('Resize original')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setDialogState(() {
+                        selectedMode = value;
+                        if (selectedMode != ResizeMode.resizeThisFile) {
+                          dangerousConfirmed = false;
+                        }
+                      });
+                    },
+                  ),
+                  if (selectedMode == ResizeMode.resizeThisFile) ...[
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Warning: this overwrites original files without backup.',
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                    CheckboxListTile(
+                      value: dangerousConfirmed,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('I understand and want to continue'),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          dangerousConfirmed = value ?? false;
+                        });
+                      },
+                    ),
+                  ]
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: selectedMode == ResizeMode.resizeThisFile &&
+                        !dangerousConfirmed
+                    ? null
+                    : () {
+                        repository.putInt('batch_resize_type', selectedType.index);
+                        repository.putInt('batch_resize_mode', selectedMode.index);
+                        Navigator.pop(
+                          dialogContext,
+                          _BatchResizeOptions(
+                            interpolation: selectedType,
+                            resizeMode: selectedMode,
+                          ),
+                        );
+                      },
+                child: const Text('Start'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+
+    return result;
+  }
+
+  Future<void> _runBatchResize(
+      List<AssetInfo> assets, _BatchResizeOptions options) async {
+    final progress = ValueNotifier<_BatchProgressState>(_BatchProgressState(
+      total: assets.length,
+      processed: 0,
+      success: 0,
+      failed: 0,
+      currentFileName: '',
+      cancelRequested: false,
+    ));
+    final failures = <_BatchFailure>[];
+
+    if (!mounted) {
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return ValueListenableBuilder<_BatchProgressState>(
+          valueListenable: progress,
+          builder: (context, state, __) {
+            final ratio = state.total == 0 ? 0.0 : state.processed / state.total;
+            return AlertDialog(
+              title: const Text('Batch resize in progress'),
+              content: SizedBox(
+                width: 480,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      state.currentFileName.isEmpty
+                          ? 'Preparing...'
+                          : 'Current: ${state.currentFileName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(value: ratio),
+                    const SizedBox(height: 10),
+                    Text('Processed: ${state.processed}/${state.total}'),
+                    Text('Success: ${state.success}'),
+                    Text('Failed: ${state.failed}'),
+                    if (state.cancelRequested) ...[
+                      const SizedBox(height: 10),
+                      const Text('Stopping after current file...'),
+                    ]
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: state.cancelRequested
+                      ? null
+                      : () {
+                          progress.value = state.copyWith(cancelRequested: true);
+                        },
+                  child: const Text('Cancel'),
+                )
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    for (var index = 0; index < assets.length; index++) {
+      final state = progress.value;
+      if (state.cancelRequested) {
+        break;
+      }
+
+      final asset = assets[index];
+      final selectedOption = _recommendedOption(asset.size);
+
+      if (selectedOption == null) {
+        failures.add(_BatchFailure(asset.file.path, 'No recommended size found'));
+        progress.value = state.copyWith(
+          processed: state.processed + 1,
+          failed: state.failed + 1,
+          currentFileName: pathUtils.basename(asset.file.path),
+        );
+        continue;
+      }
+
+      final result = await _resizeService.resize(
+        ImageResizeRequest(
+          sourcePath: asset.file.path,
+          width: selectedOption.width,
+          height: selectedOption.height,
+          resizeType: options.interpolation,
+          resizeMode: options.resizeMode,
+        ),
+      );
+
+      final latestState = progress.value;
+      if (result.success) {
+        progress.value = latestState.copyWith(
+          processed: latestState.processed + 1,
+          success: latestState.success + 1,
+          currentFileName: pathUtils.basename(asset.file.path),
+        );
+      } else {
+        failures
+            .add(_BatchFailure(asset.file.path, result.error ?? 'Unknown error'));
+        progress.value = latestState.copyWith(
+          processed: latestState.processed + 1,
+          failed: latestState.failed + 1,
+          currentFileName: pathUtils.basename(asset.file.path),
+        );
+      }
+    }
+
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+    final finalState = progress.value;
+    progress.dispose();
+
+    if (!mounted) {
+      return;
+    }
+
+    await _refreshAssets();
+
+    await _showBatchResultDialog(
+      successCount: finalState.success,
+      failedCount: finalState.failed,
+      failures: failures,
+    );
+  }
+
+  ResizeOption? _recommendedOption(ImageSize size) {
+    if (size.multipleOfFour) {
+      return null;
+    }
+
+    for (final option in size.candidates) {
+      if (option.recommended) {
+        return option;
+      }
+    }
+
+    if (size.candidates.isEmpty) {
+      return null;
+    }
+
+    return size.candidates.last;
+  }
+
+  Future<void> _refreshAssets() async {
+    final folder = _sourceController.text;
+    if (folder.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _totalFiles = 0;
+      _filesProcessed = 0;
+    });
+
+    final refreshedAssets = await _fillAssetsList(folder, true);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _assets = refreshedAssets;
+      _loading = false;
+    });
+  }
+
+  Future<void> _showBatchResultDialog({
+    required int successCount,
+    required int failedCount,
+    required List<_BatchFailure> failures,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Batch resize completed'),
+          content: SizedBox(
+            width: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Success: $successCount'),
+                Text('Failed: $failedCount'),
+                if (failures.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Text('Failed files:'),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 180,
+                    child: ListView.builder(
+                      itemCount: failures.length,
+                      itemBuilder: (context, index) {
+                        final failure = failures[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            '${pathUtils.basename(failure.path)} - ${failure.reason}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                ]
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            )
+          ],
+        );
+      },
+    );
+  }
+
   Future _onSelectFolderTap() async {
     try {
       var folder = await FilePicker.platform.getDirectoryPath();
@@ -550,14 +947,6 @@ final enlargeResizeTypes = [
   ResizeType.cubic
 ];
 
-enum ResizeType { nearest, linear, cubic, centerWithAlpha }
-
-extension ParseToString on ResizeType {
-  String toShortString() {
-    return this.toString().split('.').last;
-  }
-}
-
 bool isPowerOfTwo(int x) {
   return (x != 0) && ((x & (x - 1)) == 0);
 }
@@ -582,4 +971,57 @@ int getNextMultipleOfFour(int x) {
   }
 
   return y;
+}
+
+class _BatchResizeOptions {
+  final ResizeType interpolation;
+  final ResizeMode resizeMode;
+
+  const _BatchResizeOptions({
+    required this.interpolation,
+    required this.resizeMode,
+  });
+}
+
+class _BatchFailure {
+  final String path;
+  final String reason;
+
+  const _BatchFailure(this.path, this.reason);
+}
+
+class _BatchProgressState {
+  final int total;
+  final int processed;
+  final int success;
+  final int failed;
+  final String currentFileName;
+  final bool cancelRequested;
+
+  const _BatchProgressState({
+    required this.total,
+    required this.processed,
+    required this.success,
+    required this.failed,
+    required this.currentFileName,
+    required this.cancelRequested,
+  });
+
+  _BatchProgressState copyWith({
+    int? total,
+    int? processed,
+    int? success,
+    int? failed,
+    String? currentFileName,
+    bool? cancelRequested,
+  }) {
+    return _BatchProgressState(
+      total: total ?? this.total,
+      processed: processed ?? this.processed,
+      success: success ?? this.success,
+      failed: failed ?? this.failed,
+      currentFileName: currentFileName ?? this.currentFileName,
+      cancelRequested: cancelRequested ?? this.cancelRequested,
+    );
+  }
 }

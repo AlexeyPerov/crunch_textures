@@ -34,7 +34,11 @@ class AppThemeData {
           _lightFillColor.withOpacity(0.80),
           _darkFillColor,
         ),
-        contentTextStyle: TextStyle(color: colorScheme.onPrimary),
+        contentTextStyle: TextStyle(
+          color: colorScheme.brightness == Brightness.light
+              ? Colors.white
+              : colorScheme.onPrimary,
+        ),
       ),
     );
   }

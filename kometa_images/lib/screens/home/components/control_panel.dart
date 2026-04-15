@@ -79,6 +79,8 @@ class _ControlPanelState extends State<ControlPanel> {
 
       if (_assets.isNotEmpty) {
         _sourceController.text = folder;
+        _sourceController.selection =
+            TextSelection.collapsed(offset: _sourceController.text.length);
       }
 
       _loading = false;
@@ -387,6 +389,15 @@ class _ControlPanelState extends State<ControlPanel> {
     }
 
     await _runBatchResize(selectedInvalidAssets, options);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      for (final asset in selectedInvalidAssets) {
+        _selectedAssetPaths.remove(asset.file.path);
+      }
+    });
   }
 
   Widget _modeCard(String title, bool selected, Function onTapSetState) {
@@ -499,16 +510,22 @@ class _ControlPanelState extends State<ControlPanel> {
                 SizedBox(
                   width: 44,
                   child: Center(
-                    child: Transform.scale(
-                      scale: 2.0,
-                      child: Checkbox(
-                        value: isSelectable && isSelected,
-                        onChanged:
-                            isSelectable ? (_) => _toggleSelection(assetInfo) : null,
-                        checkColor: Theme.of(context).scaffoldBackgroundColor,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
+                    child: isSelectable
+                        ? Transform.scale(
+                            scale: 2.0,
+                            child: Checkbox(
+                              value: isSelected,
+                              onChanged: (_) => _toggleSelection(assetInfo),
+                              checkColor:
+                                  Theme.of(context).scaffoldBackgroundColor,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          )
+                        : const SizedBox(
+                            width: 28,
+                            height: 28,
+                          ),
                   ),
                 ),
                 const SizedBox(width: 32),
@@ -747,10 +764,10 @@ class _ControlPanelState extends State<ControlPanel> {
                           child: Text('Create resized copy')),
                       DropdownMenuItem(
                           value: ResizeMode.resizeThisFileAndBackup,
-                          child: Text('Resize original + backup')),
+                          child: Text('Resize original file + backup')),
                       DropdownMenuItem(
                           value: ResizeMode.resizeThisFile,
-                          child: Text('Resize original')),
+                          child: Text('Resize original file')),
                     ],
                     onChanged: (value) {
                       if (value == null) {
@@ -1094,6 +1111,8 @@ class _ControlPanelState extends State<ControlPanel> {
         setState(() {
           _assets = newAssets;
           _sourceController.text = folder;
+          _sourceController.selection =
+              TextSelection.collapsed(offset: _sourceController.text.length);
           _selectedAssetPaths.clear();
           _loading = false;
         });

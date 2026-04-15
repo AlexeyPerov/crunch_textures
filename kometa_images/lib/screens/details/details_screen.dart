@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as image_utils;
 import 'package:kometa_images/app/app.dart';
 import 'package:kometa_images/app/repositories/settings_repository.dart';
 import 'package:kometa_images/app/services/image_resize_service.dart';
@@ -8,7 +9,6 @@ import 'package:kometa_images/app/theme/theme_constants.dart';
 import 'package:kometa_images/app/theme/themes.dart';
 import 'package:kometa_images/screens/home/components/control_panel.dart';
 import 'package:kometa_images/screens/home/components/top_panel_card.dart';
-import 'package:kometa_images/screens/home/home_screen.dart';
 import 'package:path/path.dart' as pathUtils;
 import 'package:proviso/proviso.dart';
 
@@ -25,6 +25,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
   bool _inProgress = false;
   late ResizeMode _resizeMode;
   final ImageResizeService _resizeService = ImageResizeService();
+  late AssetInfo _asset;
+  bool _assetUpdated = false;
 
   _DetailsScreenState() {
     final savedIndex = getIt<SettingsRepository>().getInt('resize_mode');
@@ -34,6 +36,12 @@ class _DetailsScreenState extends State<DetailsScreen> {
       logger.e(e);
       _resizeMode = ResizeMode.createResizedCopy;
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _asset = widget.asset;
   }
 
   @override
@@ -48,16 +56,16 @@ class _DetailsScreenState extends State<DetailsScreen> {
     const commonRedTextStyle =
         const TextStyle(fontSize: 14.0, color: Colors.redAccent);
 
-    final path = widget.asset.file.path;
+    final path = _asset.file.path;
 
-    final name = pathUtils.basename(widget.asset.file.path);
-    final lastChanged = widget.asset.stat.changed;
-    final size = widget.asset.size;
-    final isPowerOfTwo = widget.asset.size.powerOfTwo;
-    final isMultipleOfFour = widget.asset.size.multipleOfFour;
+    final name = pathUtils.basename(_asset.file.path);
+    final lastChanged = _asset.stat.changed;
+    final size = _asset.size;
+    final isPowerOfTwo = _asset.size.powerOfTwo;
+    final isMultipleOfFour = _asset.size.multipleOfFour;
 
-    final isMultipleOfFourWidth = widget.asset.size.multipleOfFourWidth;
-    final isMultipleOfFourHeight = widget.asset.size.multipleOfFourHeight;
+    final isMultipleOfFourWidth = _asset.size.multipleOfFourWidth;
+    final isMultipleOfFourHeight = _asset.size.multipleOfFourHeight;
 
     var totalWidth = MediaQuery.of(context).size.width;
     var totalHeight = MediaQuery.of(context).size.height;
@@ -75,7 +83,10 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       iconData: Icons.arrow_back_rounded,
                       color: Theme.of(context).cardColor,
                       onTap: () {
-                        HomeScreenNavigation.navigate(context);
+                        Navigator.pop(
+                            context,
+                            DetailsScreenResult(
+                                updatedAsset: _assetUpdated ? _asset : null));
                       }),
                 ),
                 SizedBox(width: 10),
@@ -217,12 +228,11 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       child: ListView.builder(
                           shrinkWrap: false,
                           scrollDirection: Axis.vertical,
-                          itemCount: widget.asset.size.candidates.length,
+                          itemCount: _asset.size.candidates.length,
                           itemBuilder: (BuildContext context, int index) {
                             final reversedIndex =
-                                widget.asset.size.candidates.length - index - 1;
-                            var option =
-                                widget.asset.size.candidates[reversedIndex];
+                                _asset.size.candidates.length - index - 1;
+                            var option = _asset.size.candidates[reversedIndex];
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 20.0),
@@ -406,7 +416,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       _inProgress = true;
     });
 
-    final path = widget.asset.file.path;
+    final path = _asset.file.path;
     final result = await _resizeService.resize(ImageResizeRequest(
       sourcePath: path,
       width: option.width,
@@ -433,10 +443,38 @@ class _DetailsScreenState extends State<DetailsScreen> {
     } else {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Resized ${result.outputPath}')));
+      await _refreshAssetAfterOverwrite(path);
     }
 
     setState(() {
       _inProgress = false;
     });
   }
+
+  Future<void> _refreshAssetAfterOverwrite(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final image = image_utils.decodeImage(bytes);
+
+      if (image == null) {
+        return;
+      }
+
+      final updatedStat = await FileStat.stat(path);
+      final updatedSize = ImageSize(image.width, image.height);
+
+      setState(() {
+        _asset = AssetInfo(_asset.file, updatedStat, updatedSize);
+        _assetUpdated = true;
+      });
+    } catch (e) {
+      logger.e(e);
+    }
+  }
+}
+
+class DetailsScreenResult {
+  final AssetInfo? updatedAsset;
+
+  const DetailsScreenResult({this.updatedAsset});
 }

@@ -31,11 +31,14 @@ class _ControlPanelState extends State<ControlPanel> {
   late TextEditingController _sourceController;
   late ScrollController _controller;
   final ImageResizeService _resizeService = ImageResizeService();
+  final Set<String> _selectedAssetPaths = <String>{};
 
   bool _loading = false;
   int _filesProcessed = 0;
   int _totalFiles = 0;
   bool _nonMultipleOFourOnly = false;
+  bool _sortPriorityForward = true;
+  bool _selectionMode = false;
 
   @override
   void initState() {
@@ -47,6 +50,8 @@ class _ControlPanelState extends State<ControlPanel> {
     final repository = getIt<SettingsRepository>();
     _nonMultipleOFourOnly =
         repository.getBool('nonMultipleOFourOnly', defaultValue: false);
+    _sortPriorityForward =
+        repository.getBool('sortPriorityForward', defaultValue: true);
 
     final folder = repository.getString('target_folder');
 
@@ -65,6 +70,8 @@ class _ControlPanelState extends State<ControlPanel> {
   void assetsUpdated(String folder, List<AssetInfo> assets) {
     setState(() {
       _assets = assets;
+      _selectedAssetPaths.removeWhere(
+          (path) => !_assets.any((asset) => asset.file.path == path));
 
       if (_assets.isNotEmpty) {
         _sourceController.text = folder;
@@ -99,6 +106,10 @@ class _ControlPanelState extends State<ControlPanel> {
     var totalWidth = MediaQuery.of(context).size.width;
     var totalHeight = MediaQuery.of(context).size.height;
     var headerHeight = 100.0;
+    final visibleAssets = _visibleAssets;
+    final selectedVisibleCount = visibleAssets
+        .where((asset) => _selectedAssetPaths.contains(asset.file.path))
+        .length;
 
     return ListView(
       children: <Widget>[
@@ -150,7 +161,7 @@ class _ControlPanelState extends State<ControlPanel> {
           condition: _assets.length > 0,
           widget: Padding(
             padding: const EdgeInsets.only(left: 20),
-            child: Row(children: [
+            child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
               ConditionWidget(
                   condition: _sourceController.text.length > 0,
                   widget: Padding(
@@ -160,6 +171,7 @@ class _ControlPanelState extends State<ControlPanel> {
                           _sourceController.clear();
                           setState(() {
                             _assets = List.empty();
+                            _selectedAssetPaths.clear();
                           });
                         },
                         child: const Text('Reset')),
@@ -176,7 +188,40 @@ class _ControlPanelState extends State<ControlPanel> {
                 onPressed: _assets.any((asset) => !asset.size.multipleOfFour)
                     ? _onFixAllInvalidTap
                     : null,
-                child: const Text('Fix all invalid'),
+                child: const Text('Fix non-multiple-of-4 textures'),
+              ),
+              TextButton(
+                onPressed: _toggleSortPriority,
+                child: Text(_sortPriorityForward
+                    ? 'Sort: non-%4 first'
+                    : 'Sort: valid first'),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectionMode = !_selectionMode;
+                  });
+                },
+                child: Text(_selectionMode
+                    ? 'Selection mode: ON'
+                    : 'Selection mode: OFF'),
+              ),
+              TextButton(
+                onPressed: _selectionMode && visibleAssets.isNotEmpty
+                    ? _selectAllVisible
+                    : null,
+                child: const Text('Select all visible'),
+              ),
+              TextButton(
+                onPressed:
+                    _selectedAssetPaths.isNotEmpty ? _clearSelection : null,
+                child: const Text('Clear selection'),
+              ),
+              Text('Selected: ${_selectedAssetPaths.length} ($selectedVisibleCount visible)'),
+              TextButton(
+                onPressed:
+                    _selectedAssetPaths.isNotEmpty ? _onBatchSelectedTap : null,
+                child: const Text('Batch selected'),
               ),
             ]),
           ),
@@ -184,11 +229,7 @@ class _ControlPanelState extends State<ControlPanel> {
         Divider(thickness: 0.5),
         Container(
           height: totalHeight - headerHeight - 20,
-          child: _buildAssetsList(_nonMultipleOFourOnly
-              ? _assets
-                  .where((asset) => !asset.size.multipleOfFour)
-                  .toList(growable: false)
-              : _assets),
+          child: _buildAssetsList(visibleAssets),
         )
       ],
     );
@@ -198,6 +239,110 @@ class _ControlPanelState extends State<ControlPanel> {
     _nonMultipleOFourOnly = !_nonMultipleOFourOnly;
     getIt<SettingsRepository>()
         .putBool('nonMultipleOFourOnly', _nonMultipleOFourOnly);
+  }
+
+  List<AssetInfo> get _visibleAssets {
+    final filtered = _nonMultipleOFourOnly
+        ? _assets.where((asset) => !asset.size.multipleOfFour).toList()
+        : List<AssetInfo>.from(_assets);
+    return _sortedAssets(filtered);
+  }
+
+  List<AssetInfo> _sortedAssets(List<AssetInfo> assets) {
+    final sorted = List<AssetInfo>.from(assets);
+    sorted.sort((a, b) {
+      final groupCompare = _groupRank(a).compareTo(_groupRank(b));
+      if (groupCompare != 0) {
+        return groupCompare;
+      }
+
+      return pathUtils
+          .basename(a.file.path)
+          .compareTo(pathUtils.basename(b.file.path));
+    });
+    return sorted;
+  }
+
+  int _groupRank(AssetInfo asset) {
+    final isNonMultiple = !asset.size.multipleOfFour;
+    final isNonPowerOnly = asset.size.multipleOfFour && !asset.size.powerOfTwo;
+
+    if (_sortPriorityForward) {
+      if (isNonMultiple) {
+        return 0;
+      }
+      if (isNonPowerOnly) {
+        return 1;
+      }
+      return 2;
+    }
+
+    if (!isNonMultiple && !isNonPowerOnly) {
+      return 0;
+    }
+    if (isNonPowerOnly) {
+      return 1;
+    }
+    return 2;
+  }
+
+  void _toggleSortPriority() {
+    setState(() {
+      _sortPriorityForward = !_sortPriorityForward;
+    });
+    getIt<SettingsRepository>().putBool('sortPriorityForward', _sortPriorityForward);
+  }
+
+  void _selectAllVisible() {
+    setState(() {
+      for (final asset in _visibleAssets) {
+        _selectedAssetPaths.add(asset.file.path);
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedAssetPaths.clear();
+    });
+  }
+
+  void _toggleSelection(AssetInfo asset) {
+    setState(() {
+      if (_selectedAssetPaths.contains(asset.file.path)) {
+        _selectedAssetPaths.remove(asset.file.path);
+      } else {
+        _selectedAssetPaths.add(asset.file.path);
+      }
+    });
+  }
+
+  Future<void> _onBatchSelectedTap() async {
+    final selectedAssets = _assets
+        .where((asset) => _selectedAssetPaths.contains(asset.file.path))
+        .toList();
+    final selectedInvalidAssets =
+        selectedAssets.where((asset) => !asset.size.multipleOfFour).toList();
+
+    if (selectedInvalidAssets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'No selected non-multiple-of-4 textures to process.')));
+      return;
+    }
+
+    if (selectedInvalidAssets.length < selectedAssets.length) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Only selected non-multiple-of-4 textures will be processed.')));
+    }
+
+    final options = await _showBatchOptionsDialog(selectedInvalidAssets.length);
+    if (options == null || !mounted) {
+      return;
+    }
+
+    await _runBatchResize(selectedInvalidAssets, options);
   }
 
   Widget _modeCard(String title, bool selected, Function onTapSetState) {
@@ -277,6 +422,7 @@ class _ControlPanelState extends State<ControlPanel> {
 
     final isPowerOfTwo = sizeObj.powerOfTwo;
     final isMultipleOfFour = sizeObj.multipleOfFour;
+    final isSelected = _selectedAssetPaths.contains(path);
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 30.0),
@@ -285,17 +431,36 @@ class _ControlPanelState extends State<ControlPanel> {
       decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(10.0),
+          border: isSelected
+              ? Border.all(
+                  color: Theme.of(context).colorScheme.primary, width: 1.5)
+              : null,
           boxShadow: [commonBoxShadow()]),
       child: InkWell(
-        onTap: () => _goToDetails(assetInfo),
+        onTap: () =>
+            _selectionMode ? _toggleSelection(assetInfo) : _goToDetails(assetInfo),
         child: Column(
           children: <Widget>[
-            Align(
-              alignment: Alignment.topLeft,
-              child: Text(name,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  style: titleTextStyle),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(name,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: titleTextStyle),
+                ),
+                Icon(
+                  isSelected
+                      ? Icons.check_box
+                      : (_selectionMode
+                          ? Icons.check_box_outline_blank
+                          : Icons.crop_square),
+                  size: 18,
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+              ],
             ),
             SizedBox(height: 8.0),
             Align(
@@ -380,9 +545,29 @@ class _ControlPanelState extends State<ControlPanel> {
     );
   }
 
-  void _goToDetails(AssetInfo asset) {
-    NavigatorUtilities.pushWithNoTransition(
+  Future<void> _goToDetails(AssetInfo asset) async {
+    if (_selectionMode) {
+      _toggleSelection(asset);
+      return;
+    }
+
+    final result = await NavigatorUtilities.pushWithNoTransition(
         context, (_, __, ___) => DetailsScreen(asset: asset));
+
+    if (result is! DetailsScreenResult || result.updatedAsset == null) {
+      return;
+    }
+
+    final updated = result.updatedAsset!;
+    final index = _assets.indexWhere((item) => item.file.path == updated.file.path);
+
+    if (index < 0) {
+      return;
+    }
+
+    setState(() {
+      _assets[index] = updated;
+    });
   }
 
   Future<void> _onFixAllInvalidTap() async {
@@ -391,7 +576,8 @@ class _ControlPanelState extends State<ControlPanel> {
 
     if (invalidAssets.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No invalid textures to process.')));
+          const SnackBar(
+              content: Text('No non-multiple-of-4 textures to process.')));
       return;
     }
 
@@ -436,7 +622,7 @@ class _ControlPanelState extends State<ControlPanel> {
       builder: (dialogContext) {
         return StatefulBuilder(builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Fix all invalid'),
+            title: const Text('Fix non-multiple-of-4 textures'),
             content: SizedBox(
               width: 480,
               child: Column(
@@ -445,11 +631,17 @@ class _ControlPanelState extends State<ControlPanel> {
                 children: [
                   Text('Files to process: $filesCount'),
                   const SizedBox(height: 10),
-                  const Text('Resize method: Use recommended size per file'),
+                  const Text(
+                      'Resize size rule: Auto-pick recommended size for each file'),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'For each non-multiple-of-4 texture, the app chooses a target size that is a multiple of 4 (usually by enlarging).',
+                  ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<ResizeType>(
                     value: selectedType,
-                    decoration: const InputDecoration(labelText: 'Interpolation'),
+                    decoration:
+                        const InputDecoration(labelText: 'Resampling method'),
                     items: const [
                       DropdownMenuItem(
                           value: ResizeType.centerWithAlpha,
@@ -719,6 +911,8 @@ class _ControlPanelState extends State<ControlPanel> {
 
     setState(() {
       _assets = refreshedAssets;
+      _selectedAssetPaths.removeWhere(
+          (path) => !_assets.any((asset) => asset.file.path == path));
       _loading = false;
     });
   }
@@ -779,8 +973,12 @@ class _ControlPanelState extends State<ControlPanel> {
 
   Future _onSelectFolderTap() async {
     try {
+      final savedFolder = getIt<SettingsRepository>().getString('target_folder');
+      final initialDirectory = _validExistingDirectory(savedFolder);
+
       final folder = await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Select folder with textures',
+        initialDirectory: initialDirectory,
       );
 
       if (folder != null && folder.isNotEmpty) {
@@ -797,6 +995,7 @@ class _ControlPanelState extends State<ControlPanel> {
         setState(() {
           _assets = newAssets;
           _sourceController.text = folder;
+          _selectedAssetPaths.clear();
           _loading = false;
         });
       }
@@ -808,6 +1007,19 @@ class _ControlPanelState extends State<ControlPanel> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Folder picker failed to open: ${e.toString()}')));
     }
+  }
+
+  String? _validExistingDirectory(String path) {
+    if (path.isEmpty) {
+      return null;
+    }
+
+    final directory = Directory(path);
+    if (!directory.existsSync()) {
+      return null;
+    }
+
+    return path;
   }
 
   Future<List<AssetInfo>> _fillAssetsList(

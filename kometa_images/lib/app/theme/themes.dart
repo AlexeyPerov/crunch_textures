@@ -33,7 +33,8 @@ class AppThemeData {
         backgroundColor: Color.alphaBlend(
           _lightFillColor.withOpacity(0.80),
           _darkFillColor,
-        )
+        ),
+        contentTextStyle: TextStyle(color: colorScheme.onPrimary),
       ),
     );
   }

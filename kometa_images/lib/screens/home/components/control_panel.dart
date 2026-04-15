@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:collection';
 
 import 'package:fading_edge_scrollview/fading_edge_scrollview.dart';
 import 'package:file_picker/file_picker.dart';
@@ -7,6 +8,7 @@ import 'package:image/image.dart' as image_utils;
 import 'package:kometa_images/app/app.dart';
 import 'package:kometa_images/app/repositories/settings_repository.dart';
 import 'package:kometa_images/app/services/image_resize_service.dart';
+import 'package:kometa_images/app/services/texture_scan_cache.dart';
 import 'package:kometa_images/app/theme/theme_constants.dart';
 import 'package:kometa_images/app/theme/themes.dart';
 import 'package:kometa_images/common/utilities/navigator_utilities.dart';
@@ -32,12 +34,15 @@ class _ControlPanelState extends State<ControlPanel> {
   late ScrollController _controller;
   final ImageResizeService _resizeService = ImageResizeService();
   final Set<String> _selectedAssetPaths = <String>{};
+  final Set<String> _changedAssetPaths = <String>{};
+  final Set<String> _prioritizedChangedPaths = <String>{};
 
   bool _loading = false;
   int _filesProcessed = 0;
   int _totalFiles = 0;
   bool _nonMultipleOFourOnly = false;
   bool _sortPriorityForward = true;
+  bool _prioritizeChangedOnTop = false;
 
   @override
   void initState() {
@@ -104,7 +109,7 @@ class _ControlPanelState extends State<ControlPanel> {
 
     var totalWidth = MediaQuery.of(context).size.width;
     var totalHeight = MediaQuery.of(context).size.height;
-    var headerHeight = 100.0;
+    var headerHeight = 120.0;
     final visibleAssets = _visibleAssets;
 
     return ListView(
@@ -127,25 +132,55 @@ class _ControlPanelState extends State<ControlPanel> {
               Expanded(
                 child: Padding(
                   padding:
-                      const EdgeInsets.only(left: 5, right: 30.0, top: 15.0),
+                      const EdgeInsets.only(left: 5, right: 30.0, top: 10.0),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Container(
-                        width: totalWidth - 100,
+                        width: totalWidth - 250,
                         child: TextFormField(
                           autocorrect: false,
                           readOnly: true,
                           controller: _sourceController,
+                          textAlign: TextAlign.end,
+                          textDirection: _sourceController.text.isNotEmpty
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
                           decoration: textFieldStyle(
                               context,
                               _sourceController.text.isNotEmpty
-                                  ? 'Assets in folder: ' +
+                                  ? 'Found textures in folder: ' +
                                       _assets.length.toString()
                                   : 'Select folder'),
                           validator: validateNonEmpty,
                           onTap: _onSelectFolderTap,
                         ),
-                      )
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 120,
+                        child: Visibility(
+                          visible: _sourceController.text.isNotEmpty,
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: true,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 20.0),
+                            child: TextButton(
+                                onPressed: () {
+                                  _sourceController.clear();
+                                  setState(() {
+                                    _assets = List.empty();
+                                    _selectedAssetPaths.clear();
+                                    _changedAssetPaths.clear();
+                                    _prioritizedChangedPaths.clear();
+                                    _prioritizeChangedOnTop = false;
+                                  });
+                                },
+                                child: const Text('Reset folder')),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -157,57 +192,66 @@ class _ControlPanelState extends State<ControlPanel> {
           condition: _assets.length > 0,
           widget: Padding(
             padding: const EdgeInsets.only(left: 20),
-            child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-              ConditionWidget(
-                  condition: _sourceController.text.length > 0,
-                  widget: Padding(
-                    padding: EdgeInsets.only(left: 10.0),
-                    child: TextButton(                    
-                        onPressed: () {
-                          _sourceController.clear();
-                          setState(() {
-                            _assets = List.empty();
-                            _selectedAssetPaths.clear();
-                          });
-                        },
-                        child: const Text('Reset')),
-                  )),
-              _modeCard(
-                  'Non-multiple of 4: ' +
-                      _assets
-                          .where((asset) => !asset.size.multipleOfFour)
-                          .length
-                          .toString(),
-                  _nonMultipleOFourOnly,
-                  _modeSwitched),
-              TextButton(
-                onPressed: _toggleSortPriority,
-                child: Text(_sortPriorityForward
-                    ? 'Sort: non-%4 first'
-                    : 'Sort: valid first'),
-              ),
-              TextButton(
-                onPressed: _assets.any((asset) => !asset.size.multipleOfFour)
-                    ? _onFixAllInvalidTap
-                    : null,
-                child: const Text('Batch: All non-multiple-of-4 Textures'),
-              ),
-              TextButton(
-                onPressed:
-                    _selectedAssetPaths.isNotEmpty ? _onBatchSelectedTap : null,
-                child: Text('Batch: Selected (${_selectedAssetPaths.length})'),
-              ),
-              TextButton(
-                onPressed:
-                    visibleAssets.isNotEmpty ? _selectAllVisible : null,
-                child: const Text('Select all'),
-              ),
-              TextButton(
-                onPressed:
-                    _selectedAssetPaths.isNotEmpty ? _clearSelection : null,
-                child: const Text('Clear selection'),
-              ),
-            ]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _modeCard(
+                        'Show only non-multiple-of-4: ' +
+                            _assets
+                                .where((asset) => !asset.size.multipleOfFour)
+                                .length
+                                .toString(),
+                        _nonMultipleOFourOnly,
+                        _modeSwitched),
+                    TextButton(
+                      onPressed: _toggleSortPriority,
+                      child: Text(_sortPriorityForward
+                          ? 'Sort: non-multiple-of-4 first'
+                          : 'Sort: valid first'),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(width: 5),
+                    TextButton(
+                      onPressed:
+                          _assets.any((asset) => !asset.size.multipleOfFour)
+                              ? _onFixAllInvalidTap
+                              : null,
+                      child: const Text('Batch: All non-multiple-of-4 Textures'),
+                    ),
+                    TextButton(
+                      onPressed: _selectedAssetPaths.isNotEmpty
+                          ? _onBatchSelectedTap
+                          : null,
+                      child: Text('Batch: Selected (${_selectedAssetPaths.length})'),
+                    ),
+                    TextButton(
+                      onPressed: visibleAssets
+                              .any((asset) => !asset.size.multipleOfFour)
+                          ? _selectAllVisible
+                          : null,
+                      child: const Text('Select all'),
+                    ),
+                    TextButton(
+                      onPressed:
+                          _selectedAssetPaths.isNotEmpty ? _clearSelection : null,
+                      child: const Text('Clear selection'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         Divider(thickness: 0.5),
@@ -235,6 +279,14 @@ class _ControlPanelState extends State<ControlPanel> {
   List<AssetInfo> _sortedAssets(List<AssetInfo> assets) {
     final sorted = List<AssetInfo>.from(assets);
     sorted.sort((a, b) {
+      if (_prioritizeChangedOnTop) {
+        final aChanged = _prioritizedChangedPaths.contains(a.file.path);
+        final bChanged = _prioritizedChangedPaths.contains(b.file.path);
+        if (aChanged != bChanged) {
+          return aChanged ? -1 : 1;
+        }
+      }
+
       final groupCompare = _groupRank(a).compareTo(_groupRank(b));
       if (groupCompare != 0) {
         return groupCompare;
@@ -272,6 +324,8 @@ class _ControlPanelState extends State<ControlPanel> {
 
   void _toggleSortPriority() {
     setState(() {
+      _prioritizedChangedPaths.clear();
+      _prioritizeChangedOnTop = false;
       _sortPriorityForward = !_sortPriorityForward;
     });
     getIt<SettingsRepository>().putBool('sortPriorityForward', _sortPriorityForward);
@@ -280,7 +334,9 @@ class _ControlPanelState extends State<ControlPanel> {
   void _selectAllVisible() {
     setState(() {
       for (final asset in _visibleAssets) {
-        _selectedAssetPaths.add(asset.file.path);
+        if (!asset.size.multipleOfFour) {
+          _selectedAssetPaths.add(asset.file.path);
+        }
       }
     });
   }
@@ -292,6 +348,10 @@ class _ControlPanelState extends State<ControlPanel> {
   }
 
   void _toggleSelection(AssetInfo asset) {
+    if (asset.size.multipleOfFour) {
+      return;
+    }
+
     setState(() {
       if (_selectedAssetPaths.contains(asset.file.path)) {
         _selectedAssetPaths.remove(asset.file.path);
@@ -331,6 +391,10 @@ class _ControlPanelState extends State<ControlPanel> {
 
   Widget _modeCard(String title, bool selected, Function onTapSetState) {
     const commonTextStyle = const TextStyle(fontSize: 14.0);
+    final selectedShadow = Theme.of(context).brightness == Brightness.dark
+        ? const BoxShadow(
+            color: Color(0x59000000), offset: Offset(0, 4), blurRadius: 10.0)
+        : heavyBoxShadow();
 
     return InkWell(
       onTap: () => {
@@ -341,7 +405,7 @@ class _ControlPanelState extends State<ControlPanel> {
       child: Container(
         margin: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
         height: 35.0,
-        width: 180.0,
+        width: 280.0,
         decoration: BoxDecoration(
           border: Border.all(
               color: selected
@@ -350,7 +414,7 @@ class _ControlPanelState extends State<ControlPanel> {
               width: 0.5),
           color: selected ? kPrimaryColor : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(10.0),
-          boxShadow: [selected ? heavyBoxShadow() : slightBoxShadow()],
+          boxShadow: [selected ? selectedShadow : slightBoxShadow()],
         ),
         child: Container(
           child: Column(
@@ -362,7 +426,7 @@ class _ControlPanelState extends State<ControlPanel> {
                 child: Text(title,
                     style: commonTextStyle,
                     overflow: TextOverflow.fade,
-                    maxLines: 2),
+                    maxLines: 1),
               )
             ],
           ),
@@ -407,6 +471,11 @@ class _ControlPanelState extends State<ControlPanel> {
     final isPowerOfTwo = sizeObj.powerOfTwo;
     final isMultipleOfFour = sizeObj.multipleOfFour;
     final isSelected = _selectedAssetPaths.contains(path);
+    final isSelectable = !isMultipleOfFour;
+    final isChanged = _changedAssetPaths.contains(path);
+    final changedNameColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.cyan
+        : const Color(0xFF50BA64);
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 30.0),
@@ -415,7 +484,7 @@ class _ControlPanelState extends State<ControlPanel> {
       decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(10.0),
-          border: isSelected
+          border: isSelected && isSelectable
               ? Border.all(
                   color: Theme.of(context).colorScheme.primary, width: 1.5)
               : null,
@@ -433,23 +502,39 @@ class _ControlPanelState extends State<ControlPanel> {
                     child: Transform.scale(
                       scale: 2.0,
                       child: Checkbox(
-                        value: isSelected,
-                        onChanged: (_) => _toggleSelection(assetInfo),
+                        value: isSelectable && isSelected,
+                        onChanged:
+                            isSelectable ? (_) => _toggleSelection(assetInfo) : null,
+                        checkColor: Theme.of(context).scaffoldBackgroundColor,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 32),
                 Expanded(
                   child: Column(
                     children: [
                       Align(
                         alignment: Alignment.topLeft,
-                        child: Text(name,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: titleTextStyle),
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(name,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: isChanged
+                                      ? titleTextStyle.copyWith(
+                                          color: changedNameColor)
+                                      : titleTextStyle),
+                            ),
+                            if (isChanged) ...[
+                              SizedBox(width: 6),
+                              Icon(Icons.check,
+                                  size: 16, color: changedNameColor),
+                            ]
+                          ],
+                        ),
                       ),
                       SizedBox(height: 8.0),
                       Align(
@@ -560,6 +645,7 @@ class _ControlPanelState extends State<ControlPanel> {
     setState(() {
       _assets[index] = updated;
     });
+    _markChangedTextures(updated.file.path);
   }
 
   Future<void> _onFixAllInvalidTap() async {
@@ -624,9 +710,6 @@ class _ControlPanelState extends State<ControlPanel> {
                   Text('Files to process: $filesCount'),
                   const SizedBox(height: 10),
                   const Text(
-                      'Resize size rule: Auto-pick recommended size for each file'),
-                  const SizedBox(height: 6),
-                  const Text(
                     'For each non-multiple-of-4 texture, the app chooses a target size that is a multiple of 4 (usually by enlarging).',
                   ),
                   const SizedBox(height: 10),
@@ -637,7 +720,7 @@ class _ControlPanelState extends State<ControlPanel> {
                     items: const [
                       DropdownMenuItem(
                           value: ResizeType.centerWithAlpha,
-                          child: Text('Center inside a transparent img')),
+                          child: Text('Center inside a transparent image')),
                       DropdownMenuItem(
                           value: ResizeType.nearest, child: Text('Nearest')),
                       DropdownMenuItem(
@@ -743,6 +826,7 @@ class _ControlPanelState extends State<ControlPanel> {
       cancelRequested: false,
     ));
     final failures = <_BatchFailure>[];
+    final changedDuringBatch = <String>{};
 
     if (!mounted) {
       return;
@@ -833,6 +917,7 @@ class _ControlPanelState extends State<ControlPanel> {
       if (result.success) {
         if (options.resizeMode != ResizeMode.createResizedCopy) {
           await _updateAssetInCacheAfterOverwrite(asset.file.path);
+          changedDuringBatch.add(asset.file.path);
         }
         progress.value = latestState.copyWith(
           processed: latestState.processed + 1,
@@ -859,6 +944,8 @@ class _ControlPanelState extends State<ControlPanel> {
     if (!mounted) {
       return;
     }
+
+    _markChangedTexturesFromSet(changedDuringBatch);
 
     await _showBatchResultDialog(
       successCount: finalState.success,
@@ -911,6 +998,22 @@ class _ControlPanelState extends State<ControlPanel> {
     } catch (e, st) {
       logger.e(e, st);
     }
+  }
+
+  void _markChangedTextures(String path) {
+    _markChangedTexturesFromSet({path});
+  }
+
+  void _markChangedTexturesFromSet(Set<String> changedPaths) {
+    if (changedPaths.isEmpty || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _changedAssetPaths.addAll(changedPaths);
+      _prioritizedChangedPaths.addAll(changedPaths);
+      _prioritizeChangedOnTop = true;
+    });
   }
 
   Future<void> _showBatchResultDialog({
@@ -1020,54 +1123,100 @@ class _ControlPanelState extends State<ControlPanel> {
 
   Future<List<AssetInfo>> _fillAssetsList(
       String folder, bool outputErrors) async {
-    var newAssets = List<AssetInfo>.empty(growable: true);
+    final newAssets = <AssetInfo>[];
+    final settingsRepository = getIt<SettingsRepository>();
+    final cache = TextureScanCache(settingsRepository)..load();
+    final ignoredDirectoryNames = {'.git', 'build', 'node_modules', '.dart_tool'};
 
     try {
-      var dir = Directory(folder);
+      final rootDirectory = Directory(folder);
+      logger.i('Opening directory: $folder');
 
-      logger.i('Opening directory: ' + folder);
+      final pending = Queue<Directory>()..add(rootDirectory);
+      var discoveredImages = 0;
+      var processedImages = 0;
+      var filesFound = 0;
+      var lastProgressTick = DateTime.now().millisecondsSinceEpoch;
 
-      var files = dir.listSync(recursive: true).toList(growable: false);
+      while (pending.isNotEmpty) {
+        final currentDirectory = pending.removeFirst();
+        await for (final entity in currentDirectory.list(followLinks: false)) {
+          filesFound++;
 
-      logger.i('Files found: ' + files.length.toString());
+          if (entity is Directory) {
+            final dirName = pathUtils.basename(entity.path);
+            if (ignoredDirectoryNames.contains(dirName)) {
+              continue;
+            }
+            pending.add(entity);
+            continue;
+          }
 
-      var images = files
-          .where((file) =>
-              file is File &&
-              imageExtensions.contains(pathUtils.extension(file.path)))
-          .toList(growable: false);
+          if (entity is! File || !_isSupportedImageFile(entity.path)) {
+            continue;
+          }
 
-      logger.i('Images found: ' + images.length.toString());
+          discoveredImages++;
+          final stat = await FileStat.stat(entity.path);
+          final modifiedMs = stat.modified.millisecondsSinceEpoch;
+          final fileLength = stat.size;
 
-      var i = 0;
+          try {
+            final cached =
+                cache.getValid(entity.path, modifiedMs, fileLength);
+            if (cached != null) {
+              newAssets.add(
+                AssetInfo(entity, stat, ImageSize(cached.width, cached.height)),
+              );
+            } else {
+              final size = await _extractImageSize(entity);
+              if (size == null) {
+                throw Exception('Unable to decode image header');
+              }
+              cache.upsert(
+                entity.path,
+                modifiedMs,
+                fileLength,
+                size.width,
+                size.height,
+              );
+              newAssets.add(AssetInfo(entity, stat, size));
+            }
+          } catch (e) {
+            if (outputErrors) {
+              logger.e(e);
+            }
+          }
 
-      setState(() {
-        _totalFiles = images.length;
-      });
-
-      for (var fileEntry in images) {
-        var file = fileEntry as File;
-
-        try {
-          var bytes = await file.readAsBytes();
-          var image = image_utils.decodeImage(bytes);
-          var imageSize = ImageSize(image!.width, image.height);
-
-          var stat = await FileStat.stat(fileEntry.path);
-
-          newAssets.add(AssetInfo(fileEntry, stat, imageSize));
-        } catch (e) {
-          if (outputErrors) logger.e(e);
+          processedImages++;
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final shouldUpdate = processedImages % 20 == 0 ||
+              now - lastProgressTick >= 200 ||
+              processedImages == discoveredImages;
+          if (shouldUpdate && mounted) {
+            setState(() {
+              _totalFiles = discoveredImages;
+              _filesProcessed = processedImages;
+            });
+            lastProgressTick = now;
+          }
         }
+      }
 
-        i++;
+      cache.save();
+      logger.i('Files found: $filesFound');
+      logger.i('Images found: $discoveredImages');
 
+      if (mounted) {
         setState(() {
-          _filesProcessed = i;
+          _totalFiles = discoveredImages;
+          _filesProcessed = processedImages;
         });
       }
     } catch (e) {
-      if (outputErrors) logger.e(e);
+      if (outputErrors) {
+        logger.e(e);
+      }
     }
 
     newAssets.sort((x1, x2) => pathUtils
@@ -1075,6 +1224,25 @@ class _ControlPanelState extends State<ControlPanel> {
         .compareTo(pathUtils.basename(x2.file.path)));
 
     return newAssets;
+  }
+
+  bool _isSupportedImageFile(String path) {
+    return imageExtensions.contains(pathUtils.extension(path).toLowerCase());
+  }
+
+  Future<ImageSize?> _extractImageSize(File file) async {
+    final bytes = await file.readAsBytes();
+    final decoder = image_utils.findDecoderForData(bytes);
+    if (decoder == null) {
+      return null;
+    }
+
+    final info = decoder.startDecode(bytes);
+    if (info == null) {
+      return null;
+    }
+
+    return ImageSize(info.width, info.height);
   }
 }
 
@@ -1136,6 +1304,11 @@ class ImageSize {
     for (var option in candidates) {
       description +=
           " [" + option.width.toString() + "x" + option.height.toString() + "]";
+    }
+
+    if (width != height) {
+      final side = width > height ? width : height;
+      description += " [" + side.toString() + "x" + side.toString() + "]";
     }
 
     return description;

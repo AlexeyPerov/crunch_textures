@@ -5,7 +5,6 @@ import 'package:kometa_images/app/repositories/settings_repository.dart';
 import 'package:kometa_images/app/theme/theme_constants.dart';
 import 'package:kometa_images/app/theme/themes.dart';
 import 'package:kometa_images/screens/home/components/top_panel_card.dart';
-import 'package:kometa_images/screens/home/home_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -24,7 +23,7 @@ class SettingsScreen extends StatelessWidget {
                       iconData: Icons.arrow_back_rounded,
                       color: Theme.of(context).cardColor,
                       onTap: () {
-                        HomeScreenNavigation.navigate(context);
+                        Navigator.pop(context);
                       }),
                 ),
                 Spacer()

@@ -66,6 +66,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
 
     final isMultipleOfFourWidth = _asset.size.multipleOfFourWidth;
     final isMultipleOfFourHeight = _asset.size.multipleOfFourHeight;
+    const actionCellWidth = 170.0;
+    const actionLabelHeight = 18.0;
 
     var totalWidth = MediaQuery.of(context).size.width;
     var totalHeight = MediaQuery.of(context).size.height;
@@ -204,45 +206,111 @@ class _DetailsScreenState extends State<DetailsScreen> {
                     condition: !isMultipleOfFour,
                     widget: Padding(
                       padding: const EdgeInsets.only(left: 35.0),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Resize options',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium!
-                                .copyWith(fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Text(
+                                'Resize options',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium!
+                                    .copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(width: 10),
+                              _modeCard()
+                            ],
                           ),
-                          SizedBox(width: 10),
-                          _modeCard()
+                          SizedBox(height: 4),
+                          Text('Please select an operation to perform:',
+                              style: commonTextStyle),
                         ],
                       ),
                     ),
                   ),
                   SizedBox(height: 5),
+                  SizedBox(height: 6),
                   Padding(
                     padding: const EdgeInsets.only(left: 35.0),
                     child: Container(
                       width: totalWidth,
-                      height: totalHeight - 400,
+                      height: totalHeight - 470,
                       child: ListView.builder(
                           shrinkWrap: false,
                           scrollDirection: Axis.vertical,
-                          itemCount: _asset.size.candidates.length,
+                          itemCount: _asset.size.candidates.length +
+                              (size.width != size.height ? 1 : 0),
                           itemBuilder: (BuildContext context, int index) {
-                            final reversedIndex =
-                                _asset.size.candidates.length - index - 1;
-                            var option = _asset.size.candidates[reversedIndex];
-
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 20.0),
-                              child: Row(
+                            if (size.width != size.height &&
+                                index == _asset.size.candidates.length) {
+                              final side = size.width > size.height
+                                  ? size.width
+                                  : size.height;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 20.0),
+                              child: Wrap(
+                                spacing: 5,
+                                runSpacing: 5,
+                                crossAxisAlignment: WrapCrossAlignment.start,
                                 children: [
-                                  Column(
+                                  SizedBox(
+                                    width: 180,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(height: 25),
+                                        Text('${side}x$side'),
+                                        Text('square'),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: actionCellWidth,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(
+                                          height: actionLabelHeight,
+                                          child: Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text('',
+                                                style: smallGreenTextStyle),
+                                          ),
+                                        ),
+                                        _copyCard(
+                                            "Center inside a transparent image",
+                                            false,
+                                            () => _resizeToSquare(),
+                                            width: actionCellWidth),
+                                      ],
+                                    ),
+                                  )
+                                ],
+                              ),
+                            );
+                          }
+
+                          final reversedIndex =
+                              _asset.size.candidates.length - index - 1;
+                          var option = _asset.size.candidates[reversedIndex];
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 1.0),
+                              child: Wrap(
+                              spacing: 5,
+                              runSpacing: 5,
+                              crossAxisAlignment: WrapCrossAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: 180,
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      SizedBox(height: 10),
+                                      SizedBox(height: 25),
                                       Text(
                                           option.width.toString() +
                                               'x' +
@@ -256,64 +324,51 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                               : smallTextStyle)
                                     ],
                                   ),
-                                  ConditionWidget(
-                                    condition: option.resizeTypesAvailable
-                                        .contains(ResizeType.linear),
-                                    widget: Padding(
-                                      padding: const EdgeInsets.only(left: 20),
-                                      child: _copyCard(
-                                          "Linear Interpolation",
-                                          false,
-                                          () => _resize(
-                                              option, ResizeType.linear)),
-                                    ),
-                                  ),
-                                  ConditionWidget(
-                                    condition: option.resizeTypesAvailable
-                                        .contains(ResizeType.cubic),
-                                    widget: Padding(
-                                      padding: const EdgeInsets.only(left: 15),
-                                      child: _copyCard(
-                                          "Cubic Interpolation",
-                                          false,
-                                          () => _resize(
-                                              option, ResizeType.cubic)),
-                                    ),
-                                  ),
-                                  ConditionWidget(
-                                    condition: option.resizeTypesAvailable
-                                        .contains(ResizeType.nearest),
-                                    widget: Padding(
-                                      padding: const EdgeInsets.only(left: 15),
-                                      child: _copyCard(
-                                          "Nearest Interpolation",
-                                          false,
-                                          () => _resize(
-                                              option, ResizeType.nearest)),
-                                    ),
-                                  ),
-                                  ConditionWidget(
-                                    condition: option.resizeTypesAvailable
-                                        .contains(ResizeType.centerWithAlpha),
-                                    widget: Padding(
-                                      padding: const EdgeInsets.only(left: 15),
-                                      child: _copyCard(
-                                          "Center inside a transparent img",
-                                          true,
-                                          () => _resize(option,
-                                              ResizeType.centerWithAlpha)),
-                                    ),
-                                  )
-                                ],
-                              ),
-                            );
-                          }),
+                                ),
+                                _actionCell(
+                                  visible: option.resizeTypesAvailable
+                                      .contains(ResizeType.linear),
+                                  buttonWidth: actionCellWidth,
+                                  labelHeight: actionLabelHeight,
+                                  onTap: () => _resize(option, ResizeType.linear),
+                                  caption: 'Linear\nInterpolation',
+                                ),
+                                _actionCell(
+                                  visible: option.resizeTypesAvailable
+                                      .contains(ResizeType.cubic),
+                                  buttonWidth: actionCellWidth,
+                                  labelHeight: actionLabelHeight,
+                                  onTap: () => _resize(option, ResizeType.cubic),
+                                  caption: 'Cubic\nInterpolation',
+                                ),
+                                _actionCell(
+                                  visible: option.resizeTypesAvailable
+                                      .contains(ResizeType.nearest),
+                                  buttonWidth: actionCellWidth,
+                                  labelHeight: actionLabelHeight,
+                                  onTap: () => _resize(option, ResizeType.nearest),
+                                  caption: 'Nearest\nInterpolation',
+                                ),
+                                _actionCell(
+                                  visible: option.resizeTypesAvailable
+                                      .contains(ResizeType.centerWithAlpha),
+                                  buttonWidth: actionCellWidth,
+                                  labelHeight: actionLabelHeight,
+                                  onTap: () => _resize(option, ResizeType.centerWithAlpha),
+                                  caption: 'Center inside a transparent image',
+                                  highlighted: true,
+                                  label: 'Recommended',
+                                )
+                              ],
+                            ),
+                          );
+                        }),
                     ),
                   )
                 ],
               ),
             ),
-            Spacer()
+            SizedBox(height: 8)
           ],
         ));
   }
@@ -373,7 +428,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  Widget _copyCard(String caption, bool highlighted, Function onTap) {
+  Widget _copyCard(String caption, bool highlighted, Function onTap,
+      {double width = 140.0}) {
     const commonTextStyle = const TextStyle(fontSize: 14.0);
 
     return InkWell(
@@ -382,7 +438,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       child: Container(
         margin: EdgeInsets.all(1),
         height: 50.0,
-        width: 140.0,
+        width: width,
         decoration: BoxDecoration(
           border: Border.all(
               color: highlighted
@@ -411,7 +467,57 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
+  Widget _actionCell({
+    required bool visible,
+    required double buttonWidth,
+    required double labelHeight,
+    required String caption,
+    required VoidCallback onTap,
+    bool highlighted = false,
+    String? label,
+  }) {
+    if (!visible) {
+      return SizedBox(width: buttonWidth + 2);
+    }
+
+    return SizedBox(
+      width: buttonWidth + 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: labelHeight,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(label ?? '', style: const TextStyle(fontSize: 12.0, color: Color(0xFF1F7C54))),
+            ),
+          ),
+          _copyCard(caption, highlighted, onTap, width: buttonWidth),
+        ],
+      ),
+    );
+  }
+
   void _resize(ResizeOption option, ResizeType type) async {
+    await _runResizeOperation(option.width, option.height, type);
+  }
+
+  Future<void> _resizeToSquare() async {
+    final side = _asset.size.width > _asset.size.height
+        ? _asset.size.width
+        : _asset.size.height;
+    await _runResizeOperation(side, side, ResizeType.centerWithAlpha);
+  }
+
+  Future<void> _runResizeOperation(
+      int width, int height, ResizeType type) async {
+    if (_resizeMode == ResizeMode.resizeThisFile) {
+      final confirmed = await _confirmOverwriteWithoutBackup();
+      if (!confirmed) {
+        return;
+      }
+    }
+
     setState(() {
       _inProgress = true;
     });
@@ -419,8 +525,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
     final path = _asset.file.path;
     final result = await _resizeService.resize(ImageResizeRequest(
       sourcePath: path,
-      width: option.width,
-      height: option.height,
+      width: width,
+      height: height,
       resizeType: type,
       resizeMode: _resizeMode,
     ));
@@ -449,6 +555,31 @@ class _DetailsScreenState extends State<DetailsScreen> {
     setState(() {
       _inProgress = false;
     });
+  }
+
+  Future<bool> _confirmOverwriteWithoutBackup() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirm overwrite'),
+          content: const Text(
+              'This operation will overwrite the original file without creating a backup. Continue?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
   }
 
   Future<void> _refreshAssetAfterOverwrite(String path) async {

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:fading_edge_scrollview/fading_edge_scrollview.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as image_utils;
 import 'package:kometa_images/app/app.dart';
 import 'package:kometa_images/app/repositories/settings_repository.dart';
 import 'package:kometa_images/app/services/image_resize_service.dart';
@@ -11,7 +12,6 @@ import 'package:kometa_images/app/theme/themes.dart';
 import 'package:kometa_images/common/utilities/navigator_utilities.dart';
 import 'package:kometa_images/screens/details/details_screen.dart';
 import 'package:kometa_images/screens/settings/settings_screen.dart';
-import 'package:image/image.dart';
 import 'package:path/path.dart' as pathUtils;
 import 'package:proviso/proviso.dart';
 
@@ -38,7 +38,6 @@ class _ControlPanelState extends State<ControlPanel> {
   int _totalFiles = 0;
   bool _nonMultipleOFourOnly = false;
   bool _sortPriorityForward = true;
-  bool _selectionMode = false;
 
   @override
   void initState() {
@@ -107,9 +106,6 @@ class _ControlPanelState extends State<ControlPanel> {
     var totalHeight = MediaQuery.of(context).size.height;
     var headerHeight = 100.0;
     final visibleAssets = _visibleAssets;
-    final selectedVisibleCount = visibleAssets
-        .where((asset) => _selectedAssetPaths.contains(asset.file.path))
-        .length;
 
     return ListView(
       children: <Widget>[
@@ -185,43 +181,31 @@ class _ControlPanelState extends State<ControlPanel> {
                   _nonMultipleOFourOnly,
                   _modeSwitched),
               TextButton(
-                onPressed: _assets.any((asset) => !asset.size.multipleOfFour)
-                    ? _onFixAllInvalidTap
-                    : null,
-                child: const Text('Fix non-multiple-of-4 textures'),
-              ),
-              TextButton(
                 onPressed: _toggleSortPriority,
                 child: Text(_sortPriorityForward
                     ? 'Sort: non-%4 first'
                     : 'Sort: valid first'),
               ),
               TextButton(
-                onPressed: () {
-                  setState(() {
-                    _selectionMode = !_selectionMode;
-                  });
-                },
-                child: Text(_selectionMode
-                    ? 'Selection mode: ON'
-                    : 'Selection mode: OFF'),
+                onPressed: _assets.any((asset) => !asset.size.multipleOfFour)
+                    ? _onFixAllInvalidTap
+                    : null,
+                child: const Text('Batch: All non-multiple-of-4 Textures'),
               ),
               TextButton(
-                onPressed: _selectionMode && visibleAssets.isNotEmpty
-                    ? _selectAllVisible
-                    : null,
-                child: const Text('Select all visible'),
+                onPressed:
+                    _selectedAssetPaths.isNotEmpty ? _onBatchSelectedTap : null,
+                child: Text('Batch: Selected (${_selectedAssetPaths.length})'),
+              ),
+              TextButton(
+                onPressed:
+                    visibleAssets.isNotEmpty ? _selectAllVisible : null,
+                child: const Text('Select all'),
               ),
               TextButton(
                 onPressed:
                     _selectedAssetPaths.isNotEmpty ? _clearSelection : null,
                 child: const Text('Clear selection'),
-              ),
-              Text('Selected: ${_selectedAssetPaths.length} ($selectedVisibleCount visible)'),
-              TextButton(
-                onPressed:
-                    _selectedAssetPaths.isNotEmpty ? _onBatchSelectedTap : null,
-                child: const Text('Batch selected'),
               ),
             ]),
           ),
@@ -437,95 +421,108 @@ class _ControlPanelState extends State<ControlPanel> {
               : null,
           boxShadow: [commonBoxShadow()]),
       child: InkWell(
-        onTap: () =>
-            _selectionMode ? _toggleSelection(assetInfo) : _goToDetails(assetInfo),
+        onTap: () => _goToDetails(assetInfo),
         child: Column(
           children: <Widget>[
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                SizedBox(
+                  width: 44,
+                  child: Center(
+                    child: Transform.scale(
+                      scale: 2.0,
+                      child: Checkbox(
+                        value: isSelected,
+                        onChanged: (_) => _toggleSelection(assetInfo),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(name,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: titleTextStyle),
-                ),
-                Icon(
-                  isSelected
-                      ? Icons.check_box
-                      : (_selectionMode
-                          ? Icons.check_box_outline_blank
-                          : Icons.crop_square),
-                  size: 18,
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ],
-            ),
-            SizedBox(height: 8.0),
-            Align(
-              alignment: Alignment.topLeft,
-              child: Text(path,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  style: commonTextStyle),
-            ),
-            SizedBox(height: 8.0),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Text(dateFormatter.format(lastChanged), style: commonTextStyle),
-                SizedBox(width: 5.0),
-                Text(timeFormatter.format(lastChanged), style: commonTextStyle),
-                Spacer(),
-                Row(
-                  children: [
-                    Text(sizeObj.width.toString(),
-                        maxLines: 1,
-                        style: assetInfo.size.multipleOfFourWidth
-                            ? commonTextStyle
-                            : commonRedTextStyle),
-                    Text("x", maxLines: 1, style: commonTextStyle),
-                    Text(sizeObj.height.toString(),
-                        maxLines: 1,
-                        style: assetInfo.size.multipleOfFourHeight
-                            ? commonTextStyle
-                            : commonRedTextStyle),
-                  ],
-                ),
-                SizedBox(width: 30.0),
-                Tooltip(
-                  message: 'Width and height are powers of two',
-                  child: Text("Power of 2:", maxLines: 1, style: commonTextStyle),
-                ),
-                Tooltip(
-                  message: isPowerOfTwo
-                      ? 'Dimensions are valid power-of-two values'
-                      : 'One or both dimensions are not power-of-two values',
-                  child: MiniButton(
-                      icon: isPowerOfTwo
-                          ? Icons.check_outlined
-                          : Icons.close_rounded,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      pressed: () => _goToDetails(assetInfo)),
-                ),
-                SizedBox(width: 30.0),
-                Tooltip(
-                  message: 'Width and height are divisible by 4',
-                  child:
-                      Text("Multiple of 4:", maxLines: 1, style: commonTextStyle),
-                ),
-                Tooltip(
-                  message: isMultipleOfFour
-                      ? 'Dimensions are Crunch-compatible'
-                      : 'One or both dimensions are not divisible by 4',
-                  child: MiniButton(
-                      icon: isMultipleOfFour
-                          ? Icons.check_outlined
-                          : Icons.close_rounded,
-                      color: isMultipleOfFour ? Colors.green : Colors.red,
-                      pressed: () => _goToDetails(assetInfo)),
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Text(name,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: titleTextStyle),
+                      ),
+                      SizedBox(height: 8.0),
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Text(path,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: commonTextStyle),
+                      ),
+                      SizedBox(height: 8.0),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          Text(dateFormatter.format(lastChanged),
+                              style: commonTextStyle),
+                          SizedBox(width: 5.0),
+                          Text(timeFormatter.format(lastChanged),
+                              style: commonTextStyle),
+                          Spacer(),
+                          Row(
+                            children: [
+                              Text(sizeObj.width.toString(),
+                                  maxLines: 1,
+                                  style: assetInfo.size.multipleOfFourWidth
+                                      ? commonTextStyle
+                                      : commonRedTextStyle),
+                              Text("x", maxLines: 1, style: commonTextStyle),
+                              Text(sizeObj.height.toString(),
+                                  maxLines: 1,
+                                  style: assetInfo.size.multipleOfFourHeight
+                                      ? commonTextStyle
+                                      : commonRedTextStyle),
+                            ],
+                          ),
+                          SizedBox(width: 30.0),
+                          Tooltip(
+                            message: 'Width and height are powers of two',
+                            child: Text("Power of 2:",
+                                maxLines: 1, style: commonTextStyle),
+                          ),
+                          Tooltip(
+                            message: isPowerOfTwo
+                                ? 'Dimensions are valid power-of-two values'
+                                : 'One or both dimensions are not power-of-two values',
+                            child: MiniButton(
+                                icon: isPowerOfTwo
+                                    ? Icons.check_outlined
+                                    : Icons.close_rounded,
+                                color: Theme.of(context).colorScheme.onSurface,
+                                pressed: () => _goToDetails(assetInfo)),
+                          ),
+                          SizedBox(width: 30.0),
+                          Tooltip(
+                            message: 'Width and height are divisible by 4',
+                            child: Text("Multiple of 4:",
+                                maxLines: 1, style: commonTextStyle),
+                          ),
+                          Tooltip(
+                            message: isMultipleOfFour
+                                ? 'Dimensions are Crunch-compatible'
+                                : 'One or both dimensions are not divisible by 4',
+                            child: MiniButton(
+                                icon: isMultipleOfFour
+                                    ? Icons.check_outlined
+                                    : Icons.close_rounded,
+                                color: isMultipleOfFour ? Colors.green : Colors.red,
+                                pressed: () => _goToDetails(assetInfo)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -546,11 +543,6 @@ class _ControlPanelState extends State<ControlPanel> {
   }
 
   Future<void> _goToDetails(AssetInfo asset) async {
-    if (_selectionMode) {
-      _toggleSelection(asset);
-      return;
-    }
-
     final result = await NavigatorUtilities.pushWithNoTransition(
         context, (_, __, ___) => DetailsScreen(asset: asset));
 
@@ -839,6 +831,9 @@ class _ControlPanelState extends State<ControlPanel> {
 
       final latestState = progress.value;
       if (result.success) {
+        if (options.resizeMode != ResizeMode.createResizedCopy) {
+          await _updateAssetInCacheAfterOverwrite(asset.file.path);
+        }
         progress.value = latestState.copyWith(
           processed: latestState.processed + 1,
           success: latestState.success + 1,
@@ -865,8 +860,6 @@ class _ControlPanelState extends State<ControlPanel> {
       return;
     }
 
-    await _refreshAssets();
-
     await _showBatchResultDialog(
       successCount: finalState.success,
       failedCount: finalState.failed,
@@ -892,29 +885,32 @@ class _ControlPanelState extends State<ControlPanel> {
     return size.candidates.last;
   }
 
-  Future<void> _refreshAssets() async {
-    final folder = _sourceController.text;
-    if (folder.isEmpty) {
+  Future<void> _updateAssetInCacheAfterOverwrite(String path) async {
+    final index = _assets.indexWhere((asset) => asset.file.path == path);
+    if (index < 0) {
       return;
     }
 
-    setState(() {
-      _loading = true;
-      _totalFiles = 0;
-      _filesProcessed = 0;
-    });
+    try {
+      final bytes = await File(path).readAsBytes();
+      final image = image_utils.decodeImage(bytes);
+      if (image == null) {
+        return;
+      }
 
-    final refreshedAssets = await _fillAssetsList(folder, true);
-    if (!mounted) {
-      return;
+      final updatedStat = await FileStat.stat(path);
+      final updatedSize = ImageSize(image.width, image.height);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _assets[index] = AssetInfo(_assets[index].file, updatedStat, updatedSize);
+      });
+    } catch (e, st) {
+      logger.e(e, st);
     }
-
-    setState(() {
-      _assets = refreshedAssets;
-      _selectedAssetPaths.removeWhere(
-          (path) => !_assets.any((asset) => asset.file.path == path));
-      _loading = false;
-    });
   }
 
   Future<void> _showBatchResultDialog({
@@ -1054,7 +1050,7 @@ class _ControlPanelState extends State<ControlPanel> {
 
         try {
           var bytes = await file.readAsBytes();
-          var image = decodeImage(bytes);
+          var image = image_utils.decodeImage(bytes);
           var imageSize = ImageSize(image!.width, image.height);
 
           var stat = await FileStat.stat(fileEntry.path);

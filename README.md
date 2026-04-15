@@ -14,31 +14,39 @@ Resizing is done via [image package](https://pub.dev/packages/image/example) wit
 - linear interpolation
 - cubic interpolation
 - nearest interpolation
-- or centering original image inside transparent one with the desired size
+- or centering original image inside transparent one with the desired size (recommended one)
 
 You can also:
 - resize an original file (with or without a backup)
 - resize to a copy
+- resize to closest 'square' size
 
 ## Usage
 
 At first select the folder to work with:
 
-![plot](./screenshots/home_select.png)
+![plot](./screenshots/empty_window.png)
 
 The tool finds all images there then indicating which are multiple of 4 and which are not
 
-![plot](./screenshots/home_selected.png)
+![plot](./screenshots/list.png)
 
 Tapping on any of the images opens the panel where you can choose resize options
 
-![plot](./screenshots/texture_control.png)
+![plot](./screenshots/details.png)
 
+You can also use batch operations
+
+![plot](./screenshots/batch_popup.png)
+
+Batch operation can fix either all textures or selected ones
+
+![plot](./screenshots/batch_result.png)
 
 ## 
 Supports light & dark themes:
 
-![plot](./screenshots/settings_themes.png)
+![plot](./screenshots/settings_theme.png)
 
 ## Platforms
 

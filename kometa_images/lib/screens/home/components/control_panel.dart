@@ -509,6 +509,7 @@ class _ControlPanelState extends State<ControlPanel> {
               children: [
                 SizedBox(
                   width: 44,
+                  height: 56,
                   child: Center(
                     child: isSelectable
                         ? Transform.scale(
@@ -519,12 +520,12 @@ class _ControlPanelState extends State<ControlPanel> {
                               checkColor:
                                   Theme.of(context).scaffoldBackgroundColor,
                               materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
+                                  MaterialTapTargetSize.padded,
                             ),
                           )
                         : const SizedBox(
                             width: 28,
-                            height: 28,
+                            height: 56,
                           ),
                   ),
                 ),
